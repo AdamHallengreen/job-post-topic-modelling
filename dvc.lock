@@ -1,0 +1,34 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python src/job_post_topic_modelling/prepare.py
+    deps:
+    - path: data/Jobnet.xlsx
+      hash: md5
+      md5: bf71da0bfc3347dbd28ab5cdbe7474dd
+      size: 973498
+    - path: src/job_post_topic_modelling/prepare.py
+      hash: md5
+      md5: ec56aabcc4a52abb85096e7dc2b702ea
+      size: 7009
+    params:
+      params.yaml:
+        prepare:
+          settings:
+            nobs: 1000
+            batch_size: 50
+            threads: 4
+            chunk_size: 500
+          preprocessing:
+            model: da_core_news_lg
+            pipeline:
+            - tok2vec
+            - lemmatizer
+            keep_negations: true
+          star:
+            usestar: 0
+    outs:
+    - path: data/texts.parquet
+      hash: md5
+      md5: 49d16c577320b34b30bcdcfcf2e910e9
+      size: 129837

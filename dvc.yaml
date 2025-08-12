@@ -1,0 +1,12 @@
+stages:
+  prepare:
+    cmd: python src/job_post_topic_modelling/prepare.py
+    deps:
+    - data/Jobnet.xlsx
+    - src/job_post_topic_modelling/prepare.py
+    params:
+    - prepare
+    outs:
+    - data/texts.parquet
+metrics:
+- output/metrics.json

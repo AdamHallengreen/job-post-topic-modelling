@@ -1,0 +1,4 @@
+defaults:
+  - prepare/settings: small
+  - prepare/preprocessing: lgmodel
+  - prepare/star: local
