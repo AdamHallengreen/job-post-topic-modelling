@@ -17,6 +17,9 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "dvc>=3.62.0",
+]
 
 [project.urls]
 Homepage = "https://AdamHallengreen.github.io/job-post-topic-modelling/"
