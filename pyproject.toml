@@ -27,6 +27,8 @@ dependencies = [
     "polars[calamine]>=1.32.2",
     "polars-lts-cpu[calamine]>=1.32.2",
     "tqdm>=4.67.1",
+    "bertopic>=0.17.3",
+    "hf-xet>=1.1.7",
 ]
 
 [project.urls]

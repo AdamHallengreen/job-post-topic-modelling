@@ -9,8 +9,8 @@ stages:
       size: 973498
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: ec56aabcc4a52abb85096e7dc2b702ea
-      size: 7009
+      md5: 93ef2c651f9b3cce63be19a9ef664981
+      size: 7243
     params:
       params.yaml:
         prepare:
@@ -32,3 +32,25 @@ stages:
       hash: md5
       md5: 49d16c577320b34b30bcdcfcf2e910e9
       size: 129837
+  train:
+    cmd: python src/job_post_topic_modelling/train.py
+    deps:
+    - path: data/texts.parquet
+      hash: md5
+      md5: 49d16c577320b34b30bcdcfcf2e910e9
+      size: 129837
+    - path: src/job_post_topic_modelling/train.py
+      hash: md5
+      md5: 1ea11e2563e5c6ace290d9d6f39e1964
+      size: 5183
+    params:
+      params.yaml:
+        train:
+          n_topics: 20
+          embedding_model: all-MiniLM-L6-v2
+          random_state: 42
+    outs:
+    - path: output/bertopic_topics.parquet
+      hash: md5
+      md5: 44643ab3b1c50050678a99d884bbd2e0
+      size: 126927

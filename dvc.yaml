@@ -8,5 +8,14 @@ stages:
     - prepare
     outs:
     - data/texts.parquet
+  train:
+    cmd: python src/job_post_topic_modelling/train.py
+    deps:
+    - data/texts.parquet
+    - src/job_post_topic_modelling/train.py
+    params:
+    - train
+    outs:
+    - output/bertopic_topics.parquet
 metrics:
 - output/metrics.json
