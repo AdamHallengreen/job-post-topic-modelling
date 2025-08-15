@@ -1,4 +1,10 @@
 defaults:
   - prepare/settings: small
   - prepare/star: local
-  - predict: default
+  - predict: settings
+  - predict/embedding: model
+  - predict/dimensionality_reduction: UMAP
+  - predict/clustering: HDBSCAN
+  - predict/vectorizer: CountVectorizer
+  - predict/c_TF_IDF: c_TF_IDF
+  - predict/representation: KeyBERTInspired

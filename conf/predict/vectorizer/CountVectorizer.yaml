@@ -1,0 +1,4 @@
+model: CountVectorizer
+ngram_range: [1,3]
+min_df: 10
+max_features: 10_000

@@ -236,28 +236,28 @@ if __name__ == "__main__":
     par = OmegaConf.load(params_path).prepare
 
     # Process
+    print(f"Starting {Path(__file__).name}")
     start = time.time()
-    print("Starting prepare.py")
 
-    ## Load
+    # Load
     texts = load_data(file_path, par)
     len_start = len(texts)
 
-    ## Clean
+    # Clean
     texts = clean_data(texts)
     len_cleaned = len(texts)
     print(f"    - Uses {len_cleaned:,}/{len_start:,} texts from {file_path}")
 
-    ## Save
+    # Save
     export_texts(texts, texts_file)
     print(f"    - Texts exported to {texts_file}")
 
-    ## Wrap up
+    # Wrap up
     stop = time.time()
     hours = (stop - start) / 3600
-    print(f"Finished prepare.py in {hours:.2f} hours")
+    print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
     # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True) as live:
+    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         # Log metrics
-        live.log_metric("prepare.py", f"{hours:.2f} hours", plot=False)
+        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)

@@ -1,6 +1,0 @@
-# Placeholder configuration for train stage
-# Add your BERTopic and training parameters here
-
-n_topics: 20
-embedding_model: "all-MiniLM-L6-v2"
-random_state: 42

@@ -1,0 +1,3 @@
+model: c_TF_IDF
+bm25_weighting: True
+reduce_frequent_words: True

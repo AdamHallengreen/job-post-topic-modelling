@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 1adc5c8b0646239340edef0d7544986a
-      size: 7906
+      md5: 74b89c4b59cc34d96fbd3c4483e6cb7d
+      size: 7950
     params:
       params.yaml:
         prepare:
@@ -54,43 +54,62 @@ stages:
       size: 878221
     - path: src/job_post_topic_modelling/predict.py
       hash: md5
-      md5: 1540b4b48c2bd4972b03b83e6727a4a8
-      size: 5375
+      md5: d4dc7483b3ff96529bc4e396b4e77e9e
+      size: 7115
     params:
       params.yaml:
         predict:
-          n_topics: 20
-          embedding_model: all-MiniLM-L6-v2
-          random_state: 42
+          top_n_words: 20
+          verbose: true
+          embedding:
+            embedding_model: intfloat/multilingual-e5-large-instruct
+          dimensionality_reduction:
+            model: UMAP
+            n_neighbors: 15
+            n_components: 5
+            min_dist: 0.0
+            metric: cosine
+            random_state: 42
+          clustering:
+            model: HDBSCAN
+            min_cluster_size: 15
+            metric: euclidean
+            cluster_selection_method: eom
+            prediction_data: true
+          vectorizer:
+            model: CountVectorizer
+            ngram_range:
+            - 1
+            - 3
+            min_df: 10
+            max_features: 10000
+          c_TF_IDF:
+            model: c_TF_IDF
+            bm25_weighting: true
+            reduce_frequent_words: true
+          representation:
+            model: KeyBERTInspired
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 4da3495c1c7de48cb816b701d2243045
+      md5: 8a0e79a5488a615175aa10b4690ea527
       size: 376
-    - path: models/bertopic_model/ctfidf.safetensors
-      hash: md5
-      md5: 6b85c00b742509db508ab8dee259a067
-      size: 7792456
-    - path: models/bertopic_model/ctfidf_config.json
-      hash: md5
-      md5: 837216f4ff1c2f08dc2ff63760283f3e
-      size: 14719911
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c5169a5be17880e861d7bc47f8d92791
+      md5: fa4f85f5342d9e1f53ef844a17399b85
       size: 86104
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 37daa59ebaeef0c9b595a1246a87c4b8
-      size: 28732
+      md5: 2f770468cec098e046b9c4f65feee2f5
+      size: 27557
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
     - path: models/bertopic_model
       hash: md5
-      md5: ae7b0687d0352ed17fb19fa0ef64f048.dir
-      size: 22627680
-      nfiles: 6
+      md5: 961a375afdfe78cd922c9f9b82cd1427.dir
+      size: 114138
+      nfiles: 4
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
       md5: b85101d5f5d5b1c34fc5a08cd5a2a9e1
@@ -98,5 +117,5 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: 831140e32bd0bf8e55b4c15ea7812e1a
-      size: 6491
+      md5: 5adeb4414607d06de2188fdcf5dd3445
+      size: 5243

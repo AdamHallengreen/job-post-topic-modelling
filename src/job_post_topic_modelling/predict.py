@@ -5,12 +5,15 @@ from typing import Any
 
 import polars as pl
 from bertopic import BERTopic
+from bertopic.dimensionality import BaseDimensionalityReduction
 from bertopic.representation import KeyBERTInspired
 from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
@@ -26,6 +29,13 @@ class UnsupportedAnchorTypeError(Exception):
     def __init__(self, anchor: Any):
         message = f"Unsupported anchor type: {type(anchor).__name__}.Anchor must be a string or a list of strings."
         super().__init__(message)
+
+
+class UnknownModelError(Exception):
+    """Exception raised when an unknown model is encountered."""
+
+    def __init__(self, model_name: str):
+        super().__init__(f"Unknown model: {model_name}")
 
 
 def load_data(filepath: str, text_col: str = "text") -> list[str]:
@@ -58,36 +68,74 @@ def load_danish_stopwords(filepath: str) -> list[str]:
     return stopwords
 
 
-def get_sentence_transformer():
-    sentence_model = SentenceTransformer("intfloat/multilingual-e5-large-instruct")
+def get_embedding_model(par: OmegaConf):
+    sentence_model = SentenceTransformer(par.embedding.embedding_model)
     return sentence_model
 
 
-def get_dimensionality_reduction_model():
-    umap_model = UMAP(n_neighbors=15, n_components=5, min_dist=0.0, metric="cosine")
-    return umap_model
+def get_dimensionality_reduction_model(par: OmegaConf):
+    if par.dimensionality_reduction.model == "UMAP":
+        dimensionality_reduction_model = UMAP(
+            n_neighbors=par.dimensionality_reduction.n_neighbors,
+            n_components=par.dimensionality_reduction.n_components,
+            min_dist=par.dimensionality_reduction.min_dist,
+            metric=par.dimensionality_reduction.metric,
+            random_state=par.dimensionality_reduction.random_state,
+        )
+    elif par.dimensionality_reduction.model == "PCA":
+        dimensionality_reduction_model = PCA(
+            n_components=par.dimensionality_reduction.n_components,
+        )
+    elif par.dimensionality_reduction.model == "empty":
+        dimensionality_reduction_model = BaseDimensionalityReduction()
+    else:
+        raise UnknownModelError(par.dimensionality_reduction.model)
+    return dimensionality_reduction_model
 
 
-def get_clustering_model():
-    cluster_model = HDBSCAN(
-        min_cluster_size=15, metric="euclidean", cluster_selection_method="eom", prediction_data=True
-    )
-    # cluster_model = KMeans(n_clusters=10)
-    return cluster_model
+def get_clustering_model(par: OmegaConf):
+    if par.clustering.model == "HDBSCAN":
+        clustering_model = HDBSCAN(
+            min_cluster_size=par.clustering.min_cluster_size,
+            metric=par.clustering.metric,
+            cluster_selection_method=par.clustering.cluster_selection_method,
+            prediction_data=par.clustering.prediction_data,
+        )
+    elif par.clustering.model == "KMeans":
+        clustering_model = KMeans(n_clusters=par.clustering.n_clusters)
+    else:
+        raise UnknownModelError(par.clustering.model)
+    return clustering_model
 
 
-def get_vectorizer(stop_words):
-    vectorizer_model = CountVectorizer(stop_words=stop_words, ngram_range=(1, 3))
+def get_vectorizer(par: OmegaConf, stop_words=None):
+    if par.vectorizer.model == "CountVectorizer":
+        vectorizer_model = CountVectorizer(
+            stop_words=stop_words,
+            ngram_range=(par.vectorizer.ngram_range[0], par.vectorizer.ngram_range[1]),
+            min_df=par.vectorizer.min_df,
+            max_features=par.vectorizer.max_features,
+        )
+    else:
+        raise UnknownModelError(par.vectorizer.model)
     return vectorizer_model
 
 
-def get_ctfidf_model():
-    ctfidf_model = ClassTfidfTransformer(bm25_weighting=True, reduce_frequent_words=True)
+def get_cTFIDF_model(par: OmegaConf):
+    if par.c_TF_IDF.model == "c_TF_IDF":
+        ctfidf_model = ClassTfidfTransformer(
+            bm25_weighting=par.c_TF_IDF.bm25_weighting, reduce_frequent_words=par.c_TF_IDF.reduce_frequent_words
+        )
+    else:
+        raise UnknownModelError(par.c_TF_IDF.model)
     return ctfidf_model
 
 
-def get_representation_model():
-    representation_model = KeyBERTInspired()
+def get_representation_model(par: OmegaConf):
+    if par.representation.model == "KeyBERTInspired":
+        representation_model = KeyBERTInspired()
+    else:
+        raise UnknownModelError(par.representation.model)
     return representation_model
 
 
@@ -102,66 +150,50 @@ if __name__ == "__main__":
     # Load parameters
     par = OmegaConf.load(params_path).predict
 
+    # Process
+    print(f"Starting {Path(__file__).name}")
     start = time.time()
 
-    # Load data as list of texts for BERTopic
+    # Load
     documents = load_data(data_dir / "texts.parquet", text_col="text")
-
-    # Get sentence transformer model
-    print("Loading sentence transformer model...")
-    sentence_model = get_sentence_transformer()
-
-    # Get dimensionality reduction model
-    umap_model = get_dimensionality_reduction_model()
-
-    # Get clustering model
-    cluster_model = get_clustering_model()
-
-    # Get vectorizer model
     stop_words = load_danish_stopwords(data_dir / "stopwords-da.json")
-    vectorizer_model = get_vectorizer(stop_words=stop_words)
 
-    # Get c-TF-IDF model
-    ctfidf_model = get_ctfidf_model()
+    # Choose models
+    embedding_model = get_embedding_model(par)
+    dimensionality_reduction_model = get_dimensionality_reduction_model(par)
+    clustering_model = get_clustering_model(par)
+    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
+    ctfidf_model = get_cTFIDF_model(par)
+    representation_model = get_representation_model(par)
 
-    # Get representation model
-    representation_model = get_representation_model()
-
-    print("Fitting BERTopic model...")
+    # Run BERTopic
     topic_model = BERTopic(
-        embedding_model=sentence_model,
-        umap_model=umap_model,
-        hdbscan_model=cluster_model,
+        # Modules
+        embedding_model=embedding_model,
+        umap_model=dimensionality_reduction_model,
+        hdbscan_model=clustering_model,
         vectorizer_model=vectorizer_model,
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
         # Hyperparameters
-        top_n_words=10,
-        verbose=True,
+        top_n_words=par.top_n_words,
+        verbose=par.verbose,
     )
     topics, probs = topic_model.fit_transform(documents)
 
     # Save model
-    embedding_model = "intfloat/multilingual-e5-large-instruct"
     topic_model.save(
         models_dir / "bertopic_model",
         serialization="safetensors",
-        save_ctfidf=True,
-        save_embedding_model=embedding_model,
+        save_ctfidf=False,  # True, # There is some error here for TRUE
+        save_embedding_model=par.embedding.embedding_model,
     )
 
-    topic_model.get_topic_info()
-
-    # Save topics to output directory
-    topics_out_path = output_dir / "bertopic_topics.parquet"
-    topics_df = pl.DataFrame({"document": documents, "topic": topics, "probability": probs})
-    topics_df.write_parquet(str(topics_out_path))
-    print(f"Saved BERTopic topics to {topics_out_path}")
-
+    # Wrap up
     stop = time.time()
     hours = (stop - start) / 3600
-    print(f"Finished predict.py in {hours:.2f} hours")
+    print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
+
     # Log metrics using DVCLive
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        # Log metrics
-        live.log_metric("predict.py", f"{hours:.2f} hours", plot=False)
+        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)

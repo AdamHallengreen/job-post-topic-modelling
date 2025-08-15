@@ -1,0 +1,2 @@
+model: PCA
+n_components: 5
