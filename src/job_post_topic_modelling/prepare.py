@@ -179,6 +179,7 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     df = rename_jobcenter_obs(df)
 
     # remove non-danish posts
+    df = detect_language(df)
     df = df.filter(pl.col("language") == "DAN")
 
     # clean text column
@@ -234,20 +235,28 @@ if __name__ == "__main__":
     # Load parameters
     par = OmegaConf.load(params_path).prepare
 
+    # Process
     start = time.time()
     print("Starting prepare.py")
-    # Process the data
+
+    ## Load
     texts = load_data(file_path, par)
-    texts = detect_language(texts)
+    len_start = len(texts)
+
+    ## Clean
     texts = clean_data(texts)
-    print(f"Loaded {len(texts)} texts from {file_path}")
+    len_cleaned = len(texts)
+    print(f"    - Uses {len_start}/{len_cleaned} texts from {file_path}")
 
+    ## Save
     export_texts(texts, texts_file)
-    print(f"Texts exported to {texts_file}")
+    print(f"    - Texts exported to {texts_file}")
 
+    ## Wrap up
     stop = time.time()
     hours = (stop - start) / 3600
     print(f"Finished prepare.py in {hours:.2f} hours")
+
     # Log metrics using DVCLive
     with Live(dir=str(output_dir), cache_images=True) as live:
         # Log metrics

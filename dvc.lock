@@ -9,22 +9,13 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 6b829f1a289b4151731ad6d6286053d5
-      size: 7774
+      md5: 1c3d8754aebfc0ed330ae9bf5057d485
+      size: 7902
     params:
       params.yaml:
         prepare:
           settings:
             nobs: 1000
-            batch_size: 50
-            threads: 4
-            chunk_size: 500
-          preprocessing:
-            model: da_core_news_lg
-            pipeline:
-            - tok2vec
-            - lemmatizer
-            keep_negations: true
           star:
             usestar: 0
     outs:
@@ -63,8 +54,8 @@ stages:
       size: 878221
     - path: src/job_post_topic_modelling/predict.py
       hash: md5
-      md5: ad937861838911d5d4095eefcd04b59a
-      size: 5385
+      md5: 1540b4b48c2bd4972b03b83e6727a4a8
+      size: 5375
     params:
       params.yaml:
         predict:
@@ -78,27 +69,27 @@ stages:
       size: 376
     - path: models/bertopic_model/ctfidf.safetensors
       hash: md5
-      md5: fc1c899c5e4c012fe3ae1fade4be46c8
-      size: 7800512
+      md5: 6b85c00b742509db508ab8dee259a067
+      size: 7792456
     - path: models/bertopic_model/ctfidf_config.json
       hash: md5
-      md5: da7eb17cdafa2be4bddf704a5a403abe
-      size: 14719901
+      md5: 837216f4ff1c2f08dc2ff63760283f3e
+      size: 14719911
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c3e96c908b538e0f07052ab7b68cb32a
+      md5: c5169a5be17880e861d7bc47f8d92791
       size: 86104
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 8cdb824a57be3be83489f3312642b2e1
-      size: 28763
+      md5: 37daa59ebaeef0c9b595a1246a87c4b8
+      size: 28732
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
     - path: models/bertopic_model
       hash: md5
-      md5: e0c69a88700847c1d1ada45224548b01.dir
-      size: 22635757
+      md5: ae7b0687d0352ed17fb19fa0ef64f048.dir
+      size: 22627680
       nfiles: 6
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
@@ -107,5 +98,5 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: 61740e9950d253688a1b8f5212f9a80f
-      size: 6553
+      md5: 831140e32bd0bf8e55b4c15ea7812e1a
+      size: 6491

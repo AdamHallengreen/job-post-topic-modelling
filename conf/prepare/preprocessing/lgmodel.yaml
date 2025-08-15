@@ -1,5 +1,0 @@
-model: da_core_news_lg
-pipeline:
-  - tok2vec
-  - lemmatizer
-keep_negations: true
