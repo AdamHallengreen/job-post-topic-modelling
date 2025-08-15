@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 1c3d8754aebfc0ed330ae9bf5057d485
-      size: 7902
+      md5: 1adc5c8b0646239340edef0d7544986a
+      size: 7906
     params:
       params.yaml:
         prepare:

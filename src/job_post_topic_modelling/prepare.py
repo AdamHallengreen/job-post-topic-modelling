@@ -246,7 +246,7 @@ if __name__ == "__main__":
     ## Clean
     texts = clean_data(texts)
     len_cleaned = len(texts)
-    print(f"    - Uses {len_start}/{len_cleaned} texts from {file_path}")
+    print(f"    - Uses {len_cleaned:,}/{len_start:,} texts from {file_path}")
 
     ## Save
     export_texts(texts, texts_file)
