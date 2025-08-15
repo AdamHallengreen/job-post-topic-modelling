@@ -2,4 +2,4 @@ defaults:
   - prepare/settings: small
   - prepare/preprocessing: lgmodel
   - prepare/star: local
-  - train: default
+  - predict: default

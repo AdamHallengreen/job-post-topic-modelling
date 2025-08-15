@@ -5,12 +5,12 @@ stages:
     deps:
     - path: data/Jobnet.xlsx
       hash: md5
-      md5: bf71da0bfc3347dbd28ab5cdbe7474dd
-      size: 973498
+      md5: 26964e5ea3bf422d0f744b6fab9af448
+      size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 93ef2c651f9b3cce63be19a9ef664981
-      size: 7243
+      md5: 6b829f1a289b4151731ad6d6286053d5
+      size: 7774
     params:
       params.yaml:
         prepare:
@@ -30,19 +30,19 @@ stages:
     outs:
     - path: data/texts.parquet
       hash: md5
-      md5: 49d16c577320b34b30bcdcfcf2e910e9
-      size: 129837
+      md5: 3dfe61ed4a9bf0128eb9c71bc4944fc6
+      size: 878221
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
     - path: data/texts.parquet
       hash: md5
-      md5: 49d16c577320b34b30bcdcfcf2e910e9
-      size: 129837
+      md5: d11cc60341eaee7b126cda43e4d56b48
+      size: 125177
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: 1ea11e2563e5c6ace290d9d6f39e1964
-      size: 5183
+      md5: aad65696f54b551359bc764aac233162
+      size: 5390
     params:
       params.yaml:
         train:
@@ -52,5 +52,60 @@ stages:
     outs:
     - path: output/bertopic_topics.parquet
       hash: md5
-      md5: 44643ab3b1c50050678a99d884bbd2e0
-      size: 126927
+      md5: 493115d7c7e346603ce8ebf9102a1d53
+      size: 122877
+  predict:
+    cmd: python src/job_post_topic_modelling/predict.py
+    deps:
+    - path: data/texts.parquet
+      hash: md5
+      md5: 3dfe61ed4a9bf0128eb9c71bc4944fc6
+      size: 878221
+    - path: src/job_post_topic_modelling/predict.py
+      hash: md5
+      md5: ad937861838911d5d4095eefcd04b59a
+      size: 5385
+    params:
+      params.yaml:
+        predict:
+          n_topics: 20
+          embedding_model: all-MiniLM-L6-v2
+          random_state: 42
+    outs:
+    - path: models/bertopic_model/config.json
+      hash: md5
+      md5: 4da3495c1c7de48cb816b701d2243045
+      size: 376
+    - path: models/bertopic_model/ctfidf.safetensors
+      hash: md5
+      md5: fc1c899c5e4c012fe3ae1fade4be46c8
+      size: 7800512
+    - path: models/bertopic_model/ctfidf_config.json
+      hash: md5
+      md5: da7eb17cdafa2be4bddf704a5a403abe
+      size: 14719901
+    - path: models/bertopic_model/topic_embeddings.safetensors
+      hash: md5
+      md5: c3e96c908b538e0f07052ab7b68cb32a
+      size: 86104
+    - path: models/bertopic_model/topics.json
+      hash: md5
+      md5: 8cdb824a57be3be83489f3312642b2e1
+      size: 28763
+  evaluate:
+    cmd: python src/job_post_topic_modelling/evaluate.py
+    deps:
+    - path: models/bertopic_model
+      hash: md5
+      md5: e0c69a88700847c1d1ada45224548b01.dir
+      size: 22635757
+      nfiles: 6
+    - path: src/job_post_topic_modelling/evaluate.py
+      hash: md5
+      md5: b85101d5f5d5b1c34fc5a08cd5a2a9e1
+      size: 1158
+    outs:
+    - path: output/topic_info.csv
+      hash: md5
+      md5: 61740e9950d253688a1b8f5212f9a80f
+      size: 6553

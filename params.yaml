@@ -12,7 +12,7 @@ prepare:
     keep_negations: true
   star:
     usestar: 0
-train:
+predict:
   n_topics: 20
   embedding_model: all-MiniLM-L6-v2
   random_state: 42

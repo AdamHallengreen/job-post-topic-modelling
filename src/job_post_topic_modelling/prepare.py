@@ -122,9 +122,17 @@ def load_excel(file_path: Path, sheet_name: str = "Sheet1") -> pl.DataFrame:
     Returns:
         pl.DataFrame: DataFrame representing the rows in the Excel file.
     """
-    df = pl.read_excel(
-        file_path, sheet_name=sheet_name, columns=["ID", "Text"], schema_overrides={"ID": pl.String, "Text": pl.String}
-    ).rename({"ID": "id", "Text": "text"})
+
+    df = (
+        pl.read_excel(
+            file_path,
+            sheet_name=sheet_name,
+            columns=["ID", "Text"],
+            schema_overrides={"ID": pl.String, "Text": pl.String},
+        )
+        .rename({"ID": "id", "Text": "text"})
+        .slice(0, par.settings.nobs)
+    )
     return df
 
 
@@ -173,6 +181,18 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     # remove non-danish posts
     df = df.filter(pl.col("language") == "DAN")
 
+    # clean text column
+    df = df.with_columns(
+        pl.col("text")
+        .str.replace_all(r"<[^>]+>", " ")
+        .str.replace_all(r"\b[\w\.-]+@[\w\.-]+\.\w+\b", " ")
+        .str.replace_all(r"http[s]?://\S+|www\.\S+", " ")
+        .str.replace_all(r"\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", " ")
+        .str.replace_all(r"\s+", " ")
+        .str.strip_chars_end()
+        .alias("text")
+    )
+
     return df
 
 
@@ -217,7 +237,7 @@ if __name__ == "__main__":
     start = time.time()
     print("Starting prepare.py")
     # Process the data
-    texts = load_data(file_path, par)[: par.settings.nobs]
+    texts = load_data(file_path, par)
     texts = detect_language(texts)
     texts = clean_data(texts)
     print(f"Loaded {len(texts)} texts from {file_path}")

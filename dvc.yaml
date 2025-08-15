@@ -8,14 +8,25 @@ stages:
     - prepare
     outs:
     - data/texts.parquet
-  train:
-    cmd: python src/job_post_topic_modelling/train.py
+  predict:
+    cmd: python src/job_post_topic_modelling/predict.py
     deps:
     - data/texts.parquet
-    - src/job_post_topic_modelling/train.py
+    - src/job_post_topic_modelling/predict.py
     params:
-    - train
+    - predict
     outs:
-    - output/bertopic_topics.parquet
+    - models/bertopic_model/config.json
+    - models/bertopic_model/ctfidf_config.json
+    - models/bertopic_model/ctfidf.safetensors
+    - models/bertopic_model/topic_embeddings.safetensors
+    - models/bertopic_model/topics.json
+  evaluate:
+    cmd: python src/job_post_topic_modelling/evaluate.py
+    deps:
+    - models/bertopic_model
+    - src/job_post_topic_modelling/evaluate.py
+    outs:
+    - output/topic_info.csv
 metrics:
 - output/metrics.json
