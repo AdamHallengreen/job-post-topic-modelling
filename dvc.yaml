@@ -4,7 +4,8 @@ stages:
     deps:
     - data/Jobnet.xlsx
     - src/job_post_topic_modelling/prepare.py
-    - src/job_post_topic_modelling/utils
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
     params:
     - prepare
     outs:
@@ -14,7 +15,8 @@ stages:
     deps:
     - data/texts.parquet
     - src/job_post_topic_modelling/embed.py
-    - src/job_post_topic_modelling/utils
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
     params:
     - embed
     outs:
@@ -25,7 +27,8 @@ stages:
     - data/texts.parquet
     - data/embeddings.npy
     - src/job_post_topic_modelling/predict.py
-    - src/job_post_topic_modelling/utils
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
     params:
     - embed
     - predict
@@ -40,7 +43,8 @@ stages:
     deps:
     - models/bertopic_model
     - src/job_post_topic_modelling/evaluate.py
-    - src/job_post_topic_modelling/utils
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
     outs:
     - output/topic_info.csv
 metrics:

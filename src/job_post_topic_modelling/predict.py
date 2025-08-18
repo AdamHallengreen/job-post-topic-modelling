@@ -39,17 +39,17 @@ class UnknownModelError(Exception):
         super().__init__(f"Unknown model: {model_name}")
 
 
-def load_danish_stopwords(filepath: str) -> list[str]:
+def load_danish_stop_words(filepath: str) -> list[str]:
     """
     Load Danish stop words from a JSON file.
     Args:
-        filepath (str, optional): Path to the stopwords file.
+        filepath (str, optional): Path to the _rds file.
     Returns:
         list[str]: List of Danish stop words.
     """
     with open(filepath, encoding="utf-8") as f:
-        stopwords = json.load(f)
-    return stopwords
+        stop_words = json.load(f)
+    return stop_words
 
 
 def get_embedding_model(embedding_model_name: str):
@@ -68,18 +68,11 @@ def load_pretrained_embeddings(filepath: Path):
 
 
 def get_dimensionality_reduction_model(par: OmegaConf):
+    args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
     if par.dimensionality_reduction.model == "UMAP":
-        dimensionality_reduction_model = UMAP(
-            n_neighbors=par.dimensionality_reduction.n_neighbors,
-            n_components=par.dimensionality_reduction.n_components,
-            min_dist=par.dimensionality_reduction.min_dist,
-            metric=par.dimensionality_reduction.metric,
-            random_state=par.dimensionality_reduction.random_state,
-        )
+        dimensionality_reduction_model = UMAP(**args)
     elif par.dimensionality_reduction.model == "PCA":
-        dimensionality_reduction_model = PCA(
-            n_components=par.dimensionality_reduction.n_components,
-        )
+        dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
         dimensionality_reduction_model = BaseDimensionalityReduction()
     else:
@@ -88,38 +81,29 @@ def get_dimensionality_reduction_model(par: OmegaConf):
 
 
 def get_clustering_model(par: OmegaConf):
+    args = {k: v for k, v in par.clustering.items() if k != "model"}
     if par.clustering.model == "HDBSCAN":
-        clustering_model = HDBSCAN(
-            min_cluster_size=par.clustering.min_cluster_size,
-            metric=par.clustering.metric,
-            cluster_selection_method=par.clustering.cluster_selection_method,
-            prediction_data=par.clustering.prediction_data,
-        )
+        clustering_model = HDBSCAN(**args)
     elif par.clustering.model == "KMeans":
-        clustering_model = KMeans(n_clusters=par.clustering.n_clusters)
+        clustering_model = KMeans(**args)
     else:
         raise UnknownModelError(par.clustering.model)
     return clustering_model
 
 
 def get_vectorizer(par: OmegaConf, stop_words=None):
+    args = {k: v for k, v in par.vectorizer.items() if k != "model"}
     if par.vectorizer.model == "CountVectorizer":
-        vectorizer_model = CountVectorizer(
-            stop_words=stop_words,
-            ngram_range=(par.vectorizer.ngram_range[0], par.vectorizer.ngram_range[1]),
-            min_df=par.vectorizer.min_df,
-            max_features=par.vectorizer.max_features,
-        )
+        vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
     else:
         raise UnknownModelError(par.vectorizer.model)
     return vectorizer_model
 
 
 def get_cTFIDF_model(par: OmegaConf):
+    args = {k: v for k, v in par.c_TF_IDF.items() if k != "model"}
     if par.c_TF_IDF.model == "c_TF_IDF":
-        ctfidf_model = ClassTfidfTransformer(
-            bm25_weighting=par.c_TF_IDF.bm25_weighting, reduce_frequent_words=par.c_TF_IDF.reduce_frequent_words
-        )
+        ctfidf_model = ClassTfidfTransformer(**args)
     else:
         raise UnknownModelError(par.c_TF_IDF.model)
     return ctfidf_model
@@ -152,7 +136,7 @@ if __name__ == "__main__":
     # Load
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings.npy")
-    stop_words = load_danish_stopwords(data_dir / "stopwords-da.json")
+    stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
     # Choose models
     embedding_model = get_embedding_model(embedding_model_name)

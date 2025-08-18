@@ -8,31 +8,13 @@ embed:
 predict:
   top_n_words: 20
   verbose: true
-  embedding:
-    embedding_model: intfloat/multilingual-e5-large-instruct
   dimensionality_reduction:
     model: UMAP
-    n_neighbors: 15
-    n_components: 5
-    min_dist: 0.0
-    metric: cosine
-    random_state: 42
   clustering:
     model: HDBSCAN
-    min_cluster_size: 15
-    metric: euclidean
-    cluster_selection_method: eom
-    prediction_data: true
   vectorizer:
     model: CountVectorizer
-    ngram_range:
-    - 1
-    - 3
-    min_df: 10
-    max_features: 10000
   c_TF_IDF:
     model: c_TF_IDF
-    bm25_weighting: true
-    reduce_frequent_words: true
   representation:
     model: KeyBERTInspired

@@ -3,9 +3,8 @@ defaults:
   - prepare/star: local
   - embed: model
   - predict: settings
-  - predict/embedding: model
-  - predict/dimensionality_reduction: UMAP
-  - predict/clustering: HDBSCAN
-  - predict/vectorizer: CountVectorizer
-  - predict/c_TF_IDF: c_TF_IDF
+  - predict/dimensionality_reduction: UMAP_blank
+  - predict/clustering: HDBSCAN_blank
+  - predict/vectorizer: CountVectorizer_blank
+  - predict/c_TF_IDF: c_TF_IDF_blank
   - predict/representation: KeyBERTInspired
