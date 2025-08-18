@@ -1,6 +1,7 @@
 defaults:
   - prepare/settings: small
   - prepare/star: local
+  - embed: model
   - predict: settings
   - predict/embedding: model
   - predict/dimensionality_reduction: UMAP

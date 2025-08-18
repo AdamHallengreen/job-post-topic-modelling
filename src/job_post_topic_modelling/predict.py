@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-import polars as pl
+import numpy as np
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from bertopic.representation import KeyBERTInspired
@@ -20,6 +20,7 @@ from umap import UMAP
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
+from job_post_topic_modelling.utils.data_io import load_data  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
 
@@ -38,23 +39,6 @@ class UnknownModelError(Exception):
         super().__init__(f"Unknown model: {model_name}")
 
 
-def load_data(filepath: str, text_col: str = "text") -> list[str]:
-    """
-    Load the texts.parquet file and return a list of texts for BERTopic.
-    Args:
-        filepath (str, optional): Path to the texts.parquet file.
-        text_col (str): Name of the column containing text data.
-    Returns:
-        list[str]: List of text documents.
-    """
-    df = pl.read_parquet(filepath)
-    if text_col in df.columns:
-        return df[text_col].to_list()
-    else:
-        # Fallback: use the first column
-        return df[df.columns[0]].to_list()
-
-
 def load_danish_stopwords(filepath: str) -> list[str]:
     """
     Load Danish stop words from a JSON file.
@@ -68,9 +52,19 @@ def load_danish_stopwords(filepath: str) -> list[str]:
     return stopwords
 
 
-def get_embedding_model(par: OmegaConf):
-    sentence_model = SentenceTransformer(par.embedding.embedding_model)
+def get_embedding_model(embedding_model_name: str):
+    sentence_model = SentenceTransformer(embedding_model_name)
     return sentence_model
+
+
+def load_pretrained_embeddings(filepath: Path):
+    """
+    Load precomputed embeddings from output/embeddings.npy if available, otherwise return the embedding model.
+    """
+    if filepath.exists():
+        print(f"Loading precomputed embeddings from {filepath}")
+        embeddings = np.load(filepath)
+        return embeddings
 
 
 def get_dimensionality_reduction_model(par: OmegaConf):
@@ -149,6 +143,7 @@ if __name__ == "__main__":
 
     # Load parameters
     par = OmegaConf.load(params_path).predict
+    embedding_model_name = OmegaConf.load(params_path).embed.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
@@ -156,10 +151,11 @@ if __name__ == "__main__":
 
     # Load
     documents = load_data(data_dir / "texts.parquet", text_col="text")
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings.npy")
     stop_words = load_danish_stopwords(data_dir / "stopwords-da.json")
 
     # Choose models
-    embedding_model = get_embedding_model(par)
+    embedding_model = get_embedding_model(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par)
     clustering_model = get_clustering_model(par)
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
@@ -179,14 +175,14 @@ if __name__ == "__main__":
         top_n_words=par.top_n_words,
         verbose=par.verbose,
     )
-    topics, probs = topic_model.fit_transform(documents)
+    topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
 
     # Save model
     topic_model.save(
         models_dir / "bertopic_model",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
-        save_embedding_model=par.embedding.embedding_model,
+        save_embedding_model=embedding_model_name,
     )
 
     # Wrap up

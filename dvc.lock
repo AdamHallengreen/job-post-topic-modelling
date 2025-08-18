@@ -11,6 +11,11 @@ stages:
       hash: md5
       md5: 74b89c4b59cc34d96fbd3c4483e6cb7d
       size: 7950
+    - path: src/job_post_topic_modelling/utils
+      hash: md5
+      md5: adc1a1647e7bca3e52bfaae09fc22d9e.dir
+      size: 10489
+      nfiles: 6
     params:
       params.yaml:
         prepare:
@@ -48,16 +53,27 @@ stages:
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
+    - path: data/embeddings.npy
+      hash: md5
+      md5: 55e82b008a4989bf77b93e8a5793202e
+      size: 3915904
     - path: data/texts.parquet
       hash: md5
       md5: 3dfe61ed4a9bf0128eb9c71bc4944fc6
       size: 878221
     - path: src/job_post_topic_modelling/predict.py
       hash: md5
-      md5: d4dc7483b3ff96529bc4e396b4e77e9e
-      size: 7115
+      md5: 454a0a183d48669534b071343cfbdcd2
+      size: 7102
+    - path: src/job_post_topic_modelling/utils
+      hash: md5
+      md5: adc1a1647e7bca3e52bfaae09fc22d9e.dir
+      size: 10489
+      nfiles: 6
     params:
       params.yaml:
+        embed:
+          embedding_model: intfloat/multilingual-e5-large-instruct
         predict:
           top_n_words: 20
           verbose: true
@@ -100,22 +116,52 @@ stages:
       size: 86104
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 2f770468cec098e046b9c4f65feee2f5
+      md5: cc6cfb861a5070e924406d86121f776e
       size: 27557
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
     - path: models/bertopic_model
       hash: md5
-      md5: 961a375afdfe78cd922c9f9b82cd1427.dir
+      md5: e69db6ef4329aa0606fb3897c4b38bba.dir
       size: 114138
       nfiles: 4
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
       md5: b85101d5f5d5b1c34fc5a08cd5a2a9e1
       size: 1158
+    - path: src/job_post_topic_modelling/utils
+      hash: md5
+      md5: adc1a1647e7bca3e52bfaae09fc22d9e.dir
+      size: 10489
+      nfiles: 6
     outs:
     - path: output/topic_info.csv
       hash: md5
       md5: 5adeb4414607d06de2188fdcf5dd3445
       size: 5243
+  embed:
+    cmd: python src/job_post_topic_modelling/embed.py
+    deps:
+    - path: data/texts.parquet
+      hash: md5
+      md5: 3dfe61ed4a9bf0128eb9c71bc4944fc6
+      size: 878221
+    - path: src/job_post_topic_modelling/embed.py
+      hash: md5
+      md5: 73026b89b793d1ea3150f02ce56360e9
+      size: 1185
+    - path: src/job_post_topic_modelling/utils
+      hash: md5
+      md5: adc1a1647e7bca3e52bfaae09fc22d9e.dir
+      size: 10489
+      nfiles: 6
+    params:
+      params.yaml:
+        embed:
+          embedding_model: intfloat/multilingual-e5-large-instruct
+    outs:
+    - path: data/embeddings.npy
+      hash: md5
+      md5: 55e82b008a4989bf77b93e8a5793202e
+      size: 3915904
