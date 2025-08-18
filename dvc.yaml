@@ -45,7 +45,14 @@ stages:
     - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
+    - src/job_post_topic_modelling/utils/log_html.py
     outs:
     - output/topic_info.csv
 metrics:
 - output/metrics.json
+plots:
+- output/plots/images
+artifacts:
+  topic_info:
+    path: output/topic_info.csv
+    type: dataset

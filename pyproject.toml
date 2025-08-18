@@ -29,6 +29,9 @@ dependencies = [
     "tqdm>=4.67.1",
     "bertopic>=0.17.3",
     "hf-xet>=1.1.7",
+    "matplotlib>=3.9.4",
+    "kaleido>=1.0.0",
+    "plotly>=6.3.0",
 ]
 
 [project.urls]

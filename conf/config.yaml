@@ -8,3 +8,4 @@ defaults:
   - predict/vectorizer: CountVectorizer_blank
   - predict/c_TF_IDF: c_TF_IDF_blank
   - predict/representation: KeyBERTInspired
+  - evaluate: settings

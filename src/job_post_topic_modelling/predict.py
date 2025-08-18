@@ -3,7 +3,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from bertopic.representation import KeyBERTInspired
@@ -20,7 +19,7 @@ from umap import UMAP
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
-from job_post_topic_modelling.utils.data_io import load_data  # noqa: E402
+from job_post_topic_modelling.utils.data_io import load_data, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
 
@@ -55,16 +54,6 @@ def load_danish_stop_words(filepath: str) -> list[str]:
 def get_embedding_model(embedding_model_name: str):
     sentence_model = SentenceTransformer(embedding_model_name)
     return sentence_model
-
-
-def load_pretrained_embeddings(filepath: Path):
-    """
-    Load precomputed embeddings from output/embeddings.npy if available, otherwise return the embedding model.
-    """
-    if filepath.exists():
-        print(f"Loading precomputed embeddings from {filepath}")
-        embeddings = np.load(filepath)
-        return embeddings
 
 
 def get_dimensionality_reduction_model(par: OmegaConf):
