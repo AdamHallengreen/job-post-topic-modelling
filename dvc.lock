@@ -34,25 +34,80 @@ stages:
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
+    - path: data/embeddings.npy
+      hash: md5
+      md5: 0180390272666730ce3b41a1df624dd8
+      size: 83521664
     - path: data/texts.parquet
       hash: md5
-      md5: d11cc60341eaee7b126cda43e4d56b48
-      size: 125177
+      md5: c1add3c5a40f90d38209604b8f6c2f0e
+      size: 811802
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: aad65696f54b551359bc764aac233162
-      size: 5390
+      md5: e82bcfed30d7274fdf447384687a270e
+      size: 6167
+    - path: src/job_post_topic_modelling/utils/data_io.py
+      hash: md5
+      md5: a50681cf3a6b5f5e8715270a598f9357
+      size: 952
+    - path: src/job_post_topic_modelling/utils/find_project_root.py
+      hash: md5
+      md5: 865c2bda4ba114cec5b1b69baadf5a6f
+      size: 3412
     params:
       params.yaml:
+        embed:
+          settings:
+            show_progress_bar: true
+            batch_size: 256
+            device: cpu
+            num_workers: 1
+          model:
+            embedding_model: intfloat/multilingual-e5-large-instruct
         train:
-          n_topics: 20
-          embedding_model: all-MiniLM-L6-v2
-          random_state: 42
+          settings:
+            top_n_words: 20
+            verbose: true
+          dimensionality_reduction:
+            model: UMAP
+            n_neighbors: 15
+            n_components: 5
+            min_dist: 0.0
+            metric: cosine
+            random_state: 42
+          clustering:
+            model: HDBSCAN
+            min_cluster_size: 15
+            min_samples: 15
+            metric: euclidean
+            cluster_selection_method: eom
+            prediction_data: true
+          vectorizer:
+            model: CountVectorizer
+            ngram_range:
+            - 1
+            - 3
+            min_df: 10
+            max_features: 10000
+          c_TF_IDF:
+            model: c_TF_IDF
+            bm25_weighting: true
+            reduce_frequent_words: true
+          representation:
+            model: KeyBERTInspired
     outs:
-    - path: output/bertopic_topics.parquet
+    - path: models/bertopic_model/config.json
       hash: md5
-      md5: 493115d7c7e346603ce8ebf9102a1d53
-      size: 122877
+      md5: 8a0e79a5488a615175aa10b4690ea527
+      size: 376
+    - path: models/bertopic_model/topic_embeddings.safetensors
+      hash: md5
+      md5: c53913eb8f32bb3bbdc1b3fbafa45579
+      size: 942176
+    - path: models/bertopic_model/topics.json
+      hash: md5
+      md5: f6b1e8abfbd160f3ab6aeeedfd7a0c28
+      size: 366561
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -135,8 +190,8 @@ stages:
     deps:
     - path: models/bertopic_model
       hash: md5
-      md5: ae5f3af98156a7b8758173690fc40eb8.dir
-      size: 1309180
+      md5: d3a4da5e638afca2b4200db44592a282.dir
+      size: 1309209
       nfiles: 4
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5

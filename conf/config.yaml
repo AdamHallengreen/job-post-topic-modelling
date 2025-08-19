@@ -3,10 +3,10 @@ defaults:
   - prepare/star: local
   - embed/settings: default
   - embed/model: intfloat
-  - predict/settings: default
-  - predict/dimensionality_reduction: UMAP
-  - predict/clustering: HDBSCAN
-  - predict/vectorizer: CountVectorizer
-  - predict/c_TF_IDF: c_TF_IDF
-  - predict/representation: KeyBERTInspired
+  - train/settings: default
+  - train/dimensionality_reduction: UMAP
+  - train/clustering: HDBSCAN
+  - train/vectorizer: CountVectorizer
+  - train/c_TF_IDF: c_TF_IDF
+  - train/representation: KeyBERTInspired
   - evaluate/settings: default

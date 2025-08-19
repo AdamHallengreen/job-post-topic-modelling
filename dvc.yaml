@@ -21,17 +21,17 @@ stages:
     - embed
     outs:
     - data/embeddings.npy
-  predict:
-    cmd: python src/job_post_topic_modelling/predict.py
+  train:
+    cmd: python src/job_post_topic_modelling/train.py
     deps:
     - data/texts.parquet
     - data/embeddings.npy
-    - src/job_post_topic_modelling/predict.py
+    - src/job_post_topic_modelling/train.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     params:
     - embed
-    - predict
+    - train
     outs:
     - models/bertopic_model/config.json
     # - models/bertopic_model/ctfidf_config.json
