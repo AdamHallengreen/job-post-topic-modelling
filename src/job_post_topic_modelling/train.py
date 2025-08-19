@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from bertopic.representation import KeyBERTInspired
@@ -51,15 +52,28 @@ def load_danish_stop_words(filepath: str) -> list[str]:
     return stop_words
 
 
+def rescale(x, inplace=False):
+    """Rescale an embedding so optimization will not have convergence issues."""
+    if not inplace:
+        x = np.array(x, copy=True)
+
+    x /= np.std(x[:, 0]) * 10000
+
+    return x
+
+
 def get_embedding_model(embedding_model_name: str):
     sentence_model = SentenceTransformer(embedding_model_name)
     return sentence_model
 
 
-def get_dimensionality_reduction_model(par: OmegaConf):
+def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
     if par.dimensionality_reduction.model == "UMAP":
-        dimensionality_reduction_model = UMAP(**args)
+        # Initialize and rescale PCA embeddings
+        pca_embeddings = rescale(PCA(n_components=5).fit_transform(embeddings))
+        # Start UMAP from PCA embeddings
+        dimensionality_reduction_model = UMAP(init=pca_embeddings, **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -131,7 +145,7 @@ if __name__ == "__main__":
 
     # Choose models
     embedding_model = get_embedding_model(embedding_model_name)
-    dimensionality_reduction_model = get_dimensionality_reduction_model(par)
+    dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
     ctfidf_model = get_cTFIDF_model(par)
