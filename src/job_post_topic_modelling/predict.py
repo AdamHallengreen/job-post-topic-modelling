@@ -82,6 +82,8 @@ def get_clustering_model(par: OmegaConf):
 
 def get_vectorizer(par: OmegaConf, stop_words=None):
     args = {k: v for k, v in par.vectorizer.items() if k != "model"}
+    if "ngram_range" in args:
+        args["ngram_range"] = tuple(args["ngram_range"])
     if par.vectorizer.model == "CountVectorizer":
         vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
     else:
@@ -116,7 +118,7 @@ if __name__ == "__main__":
 
     # Load parameters
     par = OmegaConf.load(params_path).predict
-    embedding_model_name = OmegaConf.load(params_path).embed.embedding_model
+    embedding_model_name = OmegaConf.load(params_path).embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
@@ -145,8 +147,8 @@ if __name__ == "__main__":
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
         # Hyperparameters
-        top_n_words=par.top_n_words,
-        verbose=par.verbose,
+        top_n_words=par.settings.top_n_words,
+        verbose=par.settings.verbose,
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
 

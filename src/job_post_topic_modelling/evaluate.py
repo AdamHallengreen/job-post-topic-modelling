@@ -9,7 +9,7 @@ from omegaconf import OmegaConf
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
-from job_post_topic_modelling.utils.data_io import load_data, load_pretrained_embeddings  # noqa: E402
+from job_post_topic_modelling.utils.data_io import load_data  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
 
@@ -71,7 +71,6 @@ if __name__ == "__main__":
 
     # load
     documents = load_data(data_dir / "texts.parquet", text_col="text")
-    embeddings = load_pretrained_embeddings(data_dir / "embeddings.npy")
     topic_model = load_model(models_dir / "bertopic_model")
 
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
@@ -95,8 +94,10 @@ if __name__ == "__main__":
         log_html(live, "hierarchy_fig.png", hierarchy_fig)
 
         # family
-        similar_topics, similarity = topic_model.find_topics(par.similarity_phrase, top_n=par.top_n)
+        similar_topics, similarity = topic_model.find_topics(par.settings.similarity_phrase, top_n=par.settings.top_n)
         barchart_fig = topic_model.visualize_barchart(
-            similar_topics, top_n_topics=par.top_n, title=f"Similar Topics to '{par.similarity_phrase}'"
+            similar_topics,
+            top_n_topics=par.settings.top_n,
+            title=f"Similar Topics to '{par.settings.similarity_phrase}'",
         )
         log_html(live, "barchart_fig.png", barchart_fig)

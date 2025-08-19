@@ -1,10 +1,13 @@
 import os
+import re
 import time
 from pathlib import Path
 
+# For plotting
 import polars as pl
 from dvclive import Live
 from lingua import LanguageDetectorBuilder
+from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
 
 from job_post_topic_modelling.utils.interactive import try_inter
@@ -185,16 +188,63 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     # clean text column
     df = df.with_columns(
         pl.col("text")
+        # Remove HTML tags
         .str.replace_all(r"<[^>]+>", " ")
-        .str.replace_all(r"\b[\w\.-]+@[\w\.-]+\.\w+\b", " ")
-        .str.replace_all(r"http[s]?://\S+|www\.\S+", " ")
-        .str.replace_all(r"\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", " ")
+        # Remove _x0009_
+        .str.replace_all(r"_x0009_", " ")
+        # Remove line breaks
+        .str.replace_all(r"[\r\n]+", " ")
+        # Remove extra whitespace
         .str.replace_all(r"\s+", " ")
         .str.strip_chars_end()
         .alias("text")
     )
 
     return df
+
+
+def filter_sentences_remove_sensitive(df: pl.DataFrame, language="danish") -> pl.DataFrame:
+    """
+    Takes a polars DataFrame with labels and texts, splits into sentences, and removes sentences containing dates, phone numbers, emails, or homepages.
+    Keeps track of which document each sentence belongs to, and appends _00, _01, ... to each label for each sentence.
+
+    Args:
+        df (pl.DataFrame): DataFrame with first column as label, second as text.
+        language (str): Language for sentence tokenization (default 'danish').
+
+    Returns:
+        pl.DataFrame: DataFrame with columns ['label', 'text'] for filtered sentences.
+    """
+    # Regex patterns
+    date_pattern = re.compile(
+        r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
+        r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
+        re.IGNORECASE,
+    )
+    phone_pattern = re.compile(r"\b(\d{8}|(\d{2}\s){3}\d{2})\b")
+    email_pattern = re.compile(r"\b[\w\.-]+@[\w\.-]+\.\w+\b")
+    homepage_pattern = re.compile(
+        r"http[s]?://\S+|www\.\S+|\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", re.IGNORECASE
+    )
+
+    labels = []
+    filtered_sentences = []
+    label_col = df.columns[0]
+    text_col = df.columns[1]
+    for label, text in zip(df[label_col], df[text_col]):
+        sent_idx = 0
+        for sent in sent_tokenize(str(text), language=language):
+            if (
+                date_pattern.search(sent)
+                or phone_pattern.search(sent)
+                or email_pattern.search(sent)
+                or homepage_pattern.search(sent)
+            ):
+                continue
+            labels.append(f"{label}_{sent_idx:02d}")
+            filtered_sentences.append(sent)
+            sent_idx += 1
+    return pl.DataFrame({"label": labels, "text": filtered_sentences})
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
@@ -247,6 +297,8 @@ if __name__ == "__main__":
     texts = clean_data(texts)
     len_cleaned = len(texts)
     print(f"    - Uses {len_cleaned:,}/{len_start:,} texts from {file_path}")
+
+    texts = filter_sentences_remove_sensitive(texts)
 
     # Save
     export_texts(texts, texts_file)
