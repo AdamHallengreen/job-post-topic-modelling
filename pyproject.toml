@@ -33,6 +33,7 @@ dependencies = [
     "kaleido>=1.0.0",
     "plotly>=6.3.0",
     "nltk>=3.9.1",
+    "model2vec[distill]>=0.6.0",
 ]
 
 [project.urls]

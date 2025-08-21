@@ -5,6 +5,7 @@ import numpy as np
 from dvclive import Live
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.models import StaticEmbedding
 
 from job_post_topic_modelling.utils.data_io import load_data
 
@@ -30,7 +31,13 @@ if __name__ == "__main__":
 
     # Compute embeddings
     print("Encoding documents...")
-    sentence_model = SentenceTransformer(par.model.embedding_model)
+    if par.model.use_model2vec:
+        static_embedding = StaticEmbedding.from_distillation(
+            par.model.embedding_model, device=par.settings.device, pca_dims=par.model.pca_dims
+        )
+        sentence_model = SentenceTransformer(modules=[static_embedding])
+    else:
+        sentence_model = SentenceTransformer(par.model.embedding_model)
     embeddings = sentence_model.encode(
         documents,
         show_progress_bar=par.settings.show_progress_bar,

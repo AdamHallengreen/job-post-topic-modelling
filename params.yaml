@@ -7,11 +7,13 @@ prepare:
 embed:
   settings:
     show_progress_bar: true
-    batch_size: 256
+    batch_size: 128
     device: cpu
     num_workers: 1
   model:
-    embedding_model: intfloat/multilingual-e5-large-instruct
+    embedding_model: GritLM/GritLM-7B
+    use_model2vec: true
+    pca_dims: 4096
 train:
   settings:
     top_n_words: 20

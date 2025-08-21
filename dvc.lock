@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: eb9fbc884557fd32e8b8749bf5b33e65
-      size: 10602
+      md5: 4adc528b5e718da950afd5d18117e73f
+      size: 10507
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -37,8 +37,8 @@ stages:
     deps:
     - path: data/embeddings.npy
       hash: md5
-      md5: 9cae0f77d2a7e59511107a69f627541b
-      size: 47534208
+      md5: 6c32242b052e9bdf6781fbfda0579bc1
+      size: 190136448
     - path: data/texts.parquet
       hash: md5
       md5: a5586ac79d4cc2e4a34162a1891f8b41
@@ -60,11 +60,13 @@ stages:
         embed:
           settings:
             show_progress_bar: true
-            batch_size: 256
+            batch_size: 128
             device: cpu
             num_workers: 1
           model:
-            embedding_model: intfloat/multilingual-e5-large-instruct
+            embedding_model: GritLM/GritLM-7B
+            use_model2vec: true
+            pca_dims: 4096
         train:
           settings:
             top_n_words: 20
@@ -99,16 +101,16 @@ stages:
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 8a0e79a5488a615175aa10b4690ea527
-      size: 376
+      md5: 8e77eddba5039e382ee3f00c0bbac28a
+      size: 353
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: ff49d7e00392df22c6f96d98b33e4de3
-      size: 774240
+      md5: 6bb71f44673da2605fdd8496c1730c50
+      size: 2162784
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 5ac035d756c955fa5230ea2b9900c815
-      size: 261592
+      md5: a85130e48753b8c98f80089821a0b520
+      size: 203426
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -191,16 +193,16 @@ stages:
     deps:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 8a0e79a5488a615175aa10b4690ea527
-      size: 376
+      md5: 8e77eddba5039e382ee3f00c0bbac28a
+      size: 353
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: ff49d7e00392df22c6f96d98b33e4de3
-      size: 774240
+      md5: 6bb71f44673da2605fdd8496c1730c50
+      size: 2162784
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 5ac035d756c955fa5230ea2b9900c815
-      size: 261592
+      md5: a85130e48753b8c98f80089821a0b520
+      size: 203426
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
       md5: 970e99f608632618424bb2e7f05403bc
@@ -220,8 +222,8 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: 1abc190bfa718cb31d64f7feffb90935
-      size: 31932
+      md5: e228cf5121a84eed4dc4da05fd3f9f23
+      size: 12482
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
@@ -231,8 +233,8 @@ stages:
       size: 782638
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
-      md5: c003136a84142ecfcfdcee58220c6200
-      size: 1706
+      md5: 4cf6496b1d3a12ea01ca636bdb7fec25
+      size: 2488
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -246,13 +248,15 @@ stages:
         embed:
           settings:
             show_progress_bar: true
-            batch_size: 256
+            batch_size: 128
             device: cpu
             num_workers: 1
           model:
-            embedding_model: intfloat/multilingual-e5-large-instruct
+            embedding_model: GritLM/GritLM-7B
+            use_model2vec: true
+            pca_dims: 4096
     outs:
     - path: data/embeddings.npy
       hash: md5
-      md5: 9cae0f77d2a7e59511107a69f627541b
-      size: 47534208
+      md5: 6c32242b052e9bdf6781fbfda0579bc1
+      size: 190136448
