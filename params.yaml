@@ -1,19 +1,19 @@
 prepare:
   settings:
-    nobs: 1000
+    nobs: null
     split_paragraphs: true
   star:
     usestar: 0
 embed:
   settings:
     show_progress_bar: true
-    batch_size: 128
+    batch_size: 256
     device: cpu
     num_workers: 1
   model:
-    embedding_model: GritLM/GritLM-7B
-    use_model2vec: true
-    pca_dims: 4096
+    embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    use_model2vec: false
+    pca_dims: 384
 train:
   settings:
     top_n_words: 20

@@ -79,7 +79,7 @@ if __name__ == "__main__":
         topic_info.to_csv(output_file)
         live.log_artifact(output_file, type="dataset")
 
-        live.log_metric("#Topics", len(topic_info), plot=False)
+        live.log_metric("#topics", len(topic_info), plot=False)
 
         fig = create_top_words_fig(topic_model)
         live.log_image("top_words.png", fig)

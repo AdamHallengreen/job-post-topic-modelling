@@ -23,30 +23,30 @@ stages:
       params.yaml:
         prepare:
           settings:
-            nobs: 1000
+            nobs:
             split_paragraphs: true
           star:
             usestar: 0
     outs:
     - path: data/texts.parquet
       hash: md5
-      md5: a5586ac79d4cc2e4a34162a1891f8b41
-      size: 782638
+      md5: 9e849442e5c16a27385d5fbc14839f9e
+      size: 6948540
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
     - path: data/embeddings.npy
       hash: md5
-      md5: 6c32242b052e9bdf6781fbfda0579bc1
-      size: 190136448
+      md5: 1e73326c9e9bd53eb0ec531ca28b4e2a
+      size: 195953792
     - path: data/texts.parquet
       hash: md5
-      md5: a5586ac79d4cc2e4a34162a1891f8b41
-      size: 782638
+      md5: 9e849442e5c16a27385d5fbc14839f9e
+      size: 6948540
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: 8545577f38b69c568c256550a66ff265
-      size: 6647
+      md5: e8aaa073ef1cfcf9e6ba3cd43895a914
+      size: 6674
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -60,13 +60,14 @@ stages:
         embed:
           settings:
             show_progress_bar: true
-            batch_size: 128
+            batch_size: 256
             device: cpu
             num_workers: 1
           model:
-            embedding_model: GritLM/GritLM-7B
-            use_model2vec: true
-            pca_dims: 4096
+            embedding_model:
+              sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+            use_model2vec: false
+            pca_dims: 384
         train:
           settings:
             top_n_words: 20
@@ -101,16 +102,16 @@ stages:
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 8e77eddba5039e382ee3f00c0bbac28a
-      size: 353
+      md5: 27a21cad8f37cbbdaaa5891befdc1d66
+      size: 398
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 6bb71f44673da2605fdd8496c1730c50
-      size: 2162784
+      md5: 1186188d912937e5494b4f8bea9d8c26
+      size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: a85130e48753b8c98f80089821a0b520
-      size: 203426
+      md5: 46038ef229eb0f684970f6df1df56642
+      size: 2108328
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -193,19 +194,19 @@ stages:
     deps:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 8e77eddba5039e382ee3f00c0bbac28a
-      size: 353
+      md5: 27a21cad8f37cbbdaaa5891befdc1d66
+      size: 398
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 6bb71f44673da2605fdd8496c1730c50
-      size: 2162784
+      md5: 1186188d912937e5494b4f8bea9d8c26
+      size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: a85130e48753b8c98f80089821a0b520
-      size: 203426
+      md5: 46038ef229eb0f684970f6df1df56642
+      size: 2108328
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: 970e99f608632618424bb2e7f05403bc
+      md5: 7f41f93f7e2ebf39c50b8a98073d44d2
       size: 3453
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
@@ -222,19 +223,19 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: e228cf5121a84eed4dc4da05fd3f9f23
-      size: 12482
+      md5: c60943938ed403be3cf39a1ba7dcff6f
+      size: 240328
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
     - path: data/texts.parquet
       hash: md5
-      md5: a5586ac79d4cc2e4a34162a1891f8b41
-      size: 782638
+      md5: 9e849442e5c16a27385d5fbc14839f9e
+      size: 6948540
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
-      md5: 4cf6496b1d3a12ea01ca636bdb7fec25
-      size: 2488
+      md5: 3a10008359e7d4d4018e73efe1403a97
+      size: 2056
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -248,15 +249,16 @@ stages:
         embed:
           settings:
             show_progress_bar: true
-            batch_size: 128
+            batch_size: 256
             device: cpu
             num_workers: 1
           model:
-            embedding_model: GritLM/GritLM-7B
-            use_model2vec: true
-            pca_dims: 4096
+            embedding_model:
+              sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+            use_model2vec: false
+            pca_dims: 384
     outs:
     - path: data/embeddings.npy
       hash: md5
-      md5: 6c32242b052e9bdf6781fbfda0579bc1
-      size: 190136448
+      md5: 1e73326c9e9bd53eb0ec531ca28b4e2a
+      size: 195953792

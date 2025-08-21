@@ -162,6 +162,7 @@ if __name__ == "__main__":
         representation_model=representation_model,
         # Hyperparameters
         top_n_words=par.settings.top_n_words,
+        nr_topics="auto",
         verbose=par.settings.verbose,
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)

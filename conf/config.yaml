@@ -1,5 +1,5 @@
 defaults:
-  - prepare/settings: small
+  - prepare/settings: full
   - prepare/star: local
   - embed/settings: default
   - embed/model: sentence_transformers
