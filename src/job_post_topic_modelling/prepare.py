@@ -192,30 +192,22 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
         .str.replace_all(r"<[^>]+>", " ")
         # Remove _x0009_
         .str.replace_all(r"_x0009_", " ")
-        # Remove line breaks
-        .str.replace_all(r"[\r\n]+", " ")
-        # Remove extra whitespace
-        .str.replace_all(r"\s+", " ")
-        .str.strip_chars_end()
+        # Remove extra tabs and spaces except line breaks
+        .str.replace_all(r"[ \t]+", " ")
+        # Remove leading and trailing whitespace
+        .str.strip_chars()
         .alias("text")
     )
 
     return df
 
 
-def filter_sentences_remove_sensitive(df: pl.DataFrame, language="danish") -> pl.DataFrame:
+def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> pl.DataFrame:
     """
-    Takes a polars DataFrame with labels and texts, splits into sentences, and removes sentences containing dates, phone numbers, emails, or homepages.
-    Keeps track of which document each sentence belongs to, and appends _00, _01, ... to each label for each sentence.
-
-    Args:
-        df (pl.DataFrame): DataFrame with first column as label, second as text.
-        language (str): Language for sentence tokenization (default 'danish').
-
-    Returns:
-        pl.DataFrame: DataFrame with columns ['label', 'text'] for filtered sentences.
+    Splits texts into sentences or paragraphs, removes those containing sensitive info,
+    and returns a DataFrame with unique labels and filtered text.
     """
-    # Regex patterns
+    # Compile regex patterns for sensitive info
     date_pattern = re.compile(
         r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
         r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
@@ -227,24 +219,36 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, language="danish") -> pl
         r"http[s]?://\S+|www\.\S+|\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", re.IGNORECASE
     )
 
-    labels = []
-    filtered_sentences = []
-    label_col = df.columns[0]
-    text_col = df.columns[1]
+    def is_sensitive(text: str) -> bool:
+        return (
+            date_pattern.search(text)
+            or phone_pattern.search(text)
+            or email_pattern.search(text)
+            or homepage_pattern.search(text)
+        )
+
+    labels, filtered_texts = [], []
+    label_col, text_col = df.columns[0], df.columns[1]
+
     for label, text in zip(df[label_col], df[text_col]):
-        sent_idx = 0
-        for sent in sent_tokenize(str(text), language=language):
-            if (
-                date_pattern.search(sent)
-                or phone_pattern.search(sent)
-                or email_pattern.search(sent)
-                or homepage_pattern.search(sent)
-            ):
-                continue
-            labels.append(f"{label}_{sent_idx:02d}")
-            filtered_sentences.append(sent)
-            sent_idx += 1
-    return pl.DataFrame({"label": labels, "text": filtered_sentences})
+        idx = 0
+        text = str(text)
+        paragraphs = re.split(r"(?:\r?\n){2,}", text) if split_paragraphs else [text]
+        for para in paragraphs:
+            sentences = sent_tokenize(para, language="danish")
+            filtered_sents = [re.sub(r"[\r\n]+", " ", sent).strip() for sent in sentences if not is_sensitive(sent)]
+            if split_paragraphs:
+                if filtered_sents:
+                    labels.append(f"{label}_{idx:02d}")
+                    filtered_texts.append(" ".join(filtered_sents))
+                    idx += 1
+            else:
+                for sent_clean in filtered_sents:
+                    labels.append(f"{label}_{idx:02d}")
+                    filtered_texts.append(sent_clean)
+                    idx += 1
+
+    return pl.DataFrame({"label": labels, "text": filtered_texts})
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
@@ -291,18 +295,22 @@ if __name__ == "__main__":
 
     # Load
     texts = load_data(file_path, par)
-    len_start = len(texts)
+    num_texts_loaded = len(texts)
 
     # Clean
     texts = clean_data(texts)
-    len_cleaned = len(texts)
-    print(f"    - Uses {len_cleaned:,}/{len_start:,} texts from {file_path}")
+    num_texts_used = len(texts)
+    print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {file_path}")
 
-    texts = filter_sentences_remove_sensitive(texts)
+    # Split
+    texts = filter_sentences_remove_sensitive(texts, split_paragraphs=par.settings.split_paragraphs)
+    num_splitted_sections = len(texts)
+    unit = "paragraphs" if par.settings.split_paragraphs else "sentences"
+    print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} {unit}")
 
     # Save
     export_texts(texts, texts_file)
-    print(f"    - Texts exported to {texts_file}")
+    print(f"    - Export texts to {texts_file}")
 
     # Wrap up
     stop = time.time()

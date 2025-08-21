@@ -1,6 +1,7 @@
 prepare:
   settings:
     nobs: 1000
+    split_paragraphs: true
   star:
     usestar: 0
 embed:

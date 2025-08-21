@@ -41,7 +41,9 @@ stages:
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
-    - models/bertopic_model
+    - models/bertopic_model/config.json
+    - models/bertopic_model/topic_embeddings.safetensors
+    - models/bertopic_model/topics.json
     - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py

@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: aa51ce22dfdb99e369289e4cffbadd06
-      size: 10028
+      md5: eb9fbc884557fd32e8b8749bf5b33e65
+      size: 10602
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -24,24 +24,25 @@ stages:
         prepare:
           settings:
             nobs: 1000
+            split_paragraphs: true
           star:
             usestar: 0
     outs:
     - path: data/texts.parquet
       hash: md5
-      md5: c1add3c5a40f90d38209604b8f6c2f0e
-      size: 811802
+      md5: a5586ac79d4cc2e4a34162a1891f8b41
+      size: 782638
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
     - path: data/embeddings.npy
       hash: md5
-      md5: 0180390272666730ce3b41a1df624dd8
-      size: 83521664
+      md5: 9cae0f77d2a7e59511107a69f627541b
+      size: 47534208
     - path: data/texts.parquet
       hash: md5
-      md5: c1add3c5a40f90d38209604b8f6c2f0e
-      size: 811802
+      md5: a5586ac79d4cc2e4a34162a1891f8b41
+      size: 782638
     - path: src/job_post_topic_modelling/train.py
       hash: md5
       md5: 8545577f38b69c568c256550a66ff265
@@ -102,12 +103,12 @@ stages:
       size: 376
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 6b1baadc027da19940102612f7a24443
-      size: 970848
+      md5: ff49d7e00392df22c6f96d98b33e4de3
+      size: 774240
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 54bf19d0e5f67941ee0e06d013720da6
-      size: 373587
+      md5: 5ac035d756c955fa5230ea2b9900c815
+      size: 261592
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -188,15 +189,22 @@ stages:
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
-    - path: models/bertopic_model
+    - path: models/bertopic_model/config.json
       hash: md5
-      md5: 854bb38bded8b67b241ae3ab22397ce4.dir
-      size: 1344907
-      nfiles: 4
+      md5: 8a0e79a5488a615175aa10b4690ea527
+      size: 376
+    - path: models/bertopic_model/topic_embeddings.safetensors
+      hash: md5
+      md5: ff49d7e00392df22c6f96d98b33e4de3
+      size: 774240
+    - path: models/bertopic_model/topics.json
+      hash: md5
+      md5: 5ac035d756c955fa5230ea2b9900c815
+      size: 261592
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: 6367506069cbb2d8ee2a89824db6483f
-      size: 3454
+      md5: 970e99f608632618424bb2e7f05403bc
+      size: 3453
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -212,15 +220,15 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: a15b1be5cf2eb8497628cc99926c4283
-      size: 33680
+      md5: 1abc190bfa718cb31d64f7feffb90935
+      size: 31932
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
     - path: data/texts.parquet
       hash: md5
-      md5: c1add3c5a40f90d38209604b8f6c2f0e
-      size: 811802
+      md5: a5586ac79d4cc2e4a34162a1891f8b41
+      size: 782638
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
       md5: c003136a84142ecfcfdcee58220c6200
@@ -246,5 +254,5 @@ stages:
     outs:
     - path: data/embeddings.npy
       hash: md5
-      md5: 0180390272666730ce3b41a1df624dd8
-      size: 83521664
+      md5: 9cae0f77d2a7e59511107a69f627541b
+      size: 47534208
