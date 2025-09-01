@@ -8,5 +8,5 @@ defaults:
   - train/clustering: HDBSCAN
   - train/vectorizer: CountVectorizer
   - train/c_TF_IDF: c_TF_IDF
-  - train/representation: KeyBERTInspired
+  - train/representation: MMR
   - evaluate/settings: default

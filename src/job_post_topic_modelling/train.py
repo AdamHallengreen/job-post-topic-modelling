@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
-from bertopic.representation import KeyBERTInspired
+from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
 from hdbscan import HDBSCAN
@@ -115,8 +115,11 @@ def get_cTFIDF_model(par: OmegaConf):
 
 
 def get_representation_model(par: OmegaConf):
+    args = {k: v for k, v in par.representation.items() if k != "model"}
     if par.representation.model == "KeyBERTInspired":
-        representation_model = KeyBERTInspired()
+        representation_model = KeyBERTInspired(**args)
+    if par.representation.model == "MMR":
+        representation_model = MaximalMarginalRelevance(**args)
     else:
         raise UnknownModelError(par.representation.model)
     return representation_model

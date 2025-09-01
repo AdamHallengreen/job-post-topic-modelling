@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 4adc528b5e718da950afd5d18117e73f
-      size: 10507
+      md5: 0887fcdc070c3e5033145eb354ff17ba
+      size: 10184
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -45,8 +45,8 @@ stages:
       size: 6948540
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: e8aaa073ef1cfcf9e6ba3cd43895a914
-      size: 6674
+      md5: 5bcd6eecc5559a3c8995e12be3e1f220
+      size: 6888
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357
@@ -98,7 +98,8 @@ stages:
             bm25_weighting: true
             reduce_frequent_words: true
           representation:
-            model: KeyBERTInspired
+            model: MMR
+            diversity: 0.2
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
@@ -110,8 +111,8 @@ stages:
       size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 46038ef229eb0f684970f6df1df56642
-      size: 2108328
+      md5: 06cbde84614e9a97c50a271c9c40332f
+      size: 2228022
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -202,8 +203,8 @@ stages:
       size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 46038ef229eb0f684970f6df1df56642
-      size: 2108328
+      md5: 06cbde84614e9a97c50a271c9c40332f
+      size: 2228022
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
       md5: 7f41f93f7e2ebf39c50b8a98073d44d2
@@ -223,8 +224,8 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: c60943938ed403be3cf39a1ba7dcff6f
-      size: 240328
+      md5: be8eccc2ab0a64acc02d79feced15393
+      size: 251825
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
@@ -234,8 +235,8 @@ stages:
       size: 6948540
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
-      md5: 3a10008359e7d4d4018e73efe1403a97
-      size: 2056
+      md5: 4f8aeaa36080806da911eb43b0c22bb1
+      size: 1995
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: a50681cf3a6b5f5e8715270a598f9357

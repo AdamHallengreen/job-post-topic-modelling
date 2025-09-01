@@ -44,7 +44,8 @@ train:
     bm25_weighting: true
     reduce_frequent_words: true
   representation:
-    model: KeyBERTInspired
+    model: MMR
+    diversity: 0.2
 evaluate:
   settings:
     similarity_phrase: familievenlig
