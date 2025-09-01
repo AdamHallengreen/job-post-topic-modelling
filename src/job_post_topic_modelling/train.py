@@ -1,4 +1,3 @@
-import json
 import time
 from pathlib import Path
 from typing import Any
@@ -6,8 +5,6 @@ from typing import Any
 import numpy as np
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
-from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
-from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
@@ -20,7 +17,11 @@ from umap import UMAP
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
-from job_post_topic_modelling.utils.data_io import load_data, load_pretrained_embeddings  # noqa: E402
+from job_post_topic_modelling.utils.data_io import (  # noqa: E402
+    load_danish_stop_words,
+    load_data,
+    load_pretrained_embeddings,
+)
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
 
@@ -37,19 +38,6 @@ class UnknownModelError(Exception):
 
     def __init__(self, model_name: str):
         super().__init__(f"Unknown model: {model_name}")
-
-
-def load_danish_stop_words(filepath: str) -> list[str]:
-    """
-    Load Danish stop words from a JSON file.
-    Args:
-        filepath (str, optional): Path to the _rds file.
-    Returns:
-        list[str]: List of Danish stop words.
-    """
-    with open(filepath, encoding="utf-8") as f:
-        stop_words = json.load(f)
-    return stop_words
 
 
 def rescale(x, inplace=False):
@@ -105,26 +93,6 @@ def get_vectorizer(par: OmegaConf, stop_words=None):
     return vectorizer_model
 
 
-def get_cTFIDF_model(par: OmegaConf):
-    args = {k: v for k, v in par.c_TF_IDF.items() if k != "model"}
-    if par.c_TF_IDF.model == "c_TF_IDF":
-        ctfidf_model = ClassTfidfTransformer(**args)
-    else:
-        raise UnknownModelError(par.c_TF_IDF.model)
-    return ctfidf_model
-
-
-def get_representation_model(par: OmegaConf):
-    args = {k: v for k, v in par.representation.items() if k != "model"}
-    if par.representation.model == "KeyBERTInspired":
-        representation_model = KeyBERTInspired(**args)
-    if par.representation.model == "MMR":
-        representation_model = MaximalMarginalRelevance(**args)
-    else:
-        raise UnknownModelError(par.representation.model)
-    return representation_model
-
-
 if __name__ == "__main__":
     # Define file paths
     project_root = Path(find_project_root(__file__))
@@ -150,9 +118,7 @@ if __name__ == "__main__":
     embedding_model = get_embedding_model(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
-    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
-    ctfidf_model = get_cTFIDF_model(par)
-    representation_model = get_representation_model(par)
+    vectorizer_model = CountVectorizer(stop_words=stop_words)
 
     # Run BERTopic
     topic_model = BERTopic(
@@ -161,8 +127,6 @@ if __name__ == "__main__":
         umap_model=dimensionality_reduction_model,
         hdbscan_model=clustering_model,
         vectorizer_model=vectorizer_model,
-        ctfidf_model=ctfidf_model,
-        representation_model=representation_model,
         # Hyperparameters
         top_n_words=par.settings.top_n_words,
         nr_topics="auto",

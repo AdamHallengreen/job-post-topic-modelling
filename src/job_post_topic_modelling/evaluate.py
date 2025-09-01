@@ -2,14 +2,17 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 from bertopic import BERTopic
+from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
+from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
+from sklearn.feature_extraction.text import CountVectorizer
 
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
-from job_post_topic_modelling.utils.data_io import load_data  # noqa: E402
+from job_post_topic_modelling.utils.data_io import load_danish_stop_words, load_data  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
 
@@ -17,6 +20,13 @@ from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
 class InvalidInputFileError(Exception):
     def __init__(self) -> None:
         super().__init__("Input file must contain a list of lists.")
+
+
+class UnknownModelError(Exception):
+    """Exception raised when an unknown model is encountered."""
+
+    def __init__(self, model_name: str):
+        super().__init__(f"Unknown model: {model_name}")
 
 
 def load_model(model_path: str | Path) -> object:
@@ -58,6 +68,37 @@ def create_top_words_fig(model) -> Figure:
     return fig
 
 
+def get_vectorizer(par: OmegaConf, stop_words=None):
+    args = {k: v for k, v in par.vectorizer.items() if k != "model"}
+    if "ngram_range" in args:
+        args["ngram_range"] = tuple(args["ngram_range"])
+    if par.vectorizer.model == "CountVectorizer":
+        vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
+    else:
+        raise UnknownModelError(par.vectorizer.model)
+    return vectorizer_model
+
+
+def get_cTFIDF_model(par: OmegaConf):
+    args = {k: v for k, v in par.c_TF_IDF.items() if k != "model"}
+    if par.c_TF_IDF.model == "c_TF_IDF":
+        ctfidf_model = ClassTfidfTransformer(**args)
+    else:
+        raise UnknownModelError(par.c_TF_IDF.model)
+    return ctfidf_model
+
+
+def get_representation_model(par: OmegaConf):
+    args = {k: v for k, v in par.representation.items() if k != "model"}
+    if par.representation.model == "KeyBERTInspired":
+        representation_model = KeyBERTInspired(**args)
+    if par.representation.model == "MMR":
+        representation_model = MaximalMarginalRelevance(**args)
+    else:
+        raise UnknownModelError(par.representation.model)
+    return representation_model
+
+
 if __name__ == "__main__":
     # Define file paths
     project_root = Path(find_project_root(__file__))
@@ -72,6 +113,20 @@ if __name__ == "__main__":
     # load
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     topic_model = load_model(models_dir / "bertopic_model")
+    stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
+
+    # Choose models
+    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
+    ctfidf_model = get_cTFIDF_model(par)
+    representation_model = get_representation_model(par)
+
+    # Adjust topic representation
+    topic_model.update_topics(
+        documents,
+        vectorizer_model=vectorizer_model,
+        ctfidf_model=ctfidf_model,
+        representation_model=representation_model,
+    )
 
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         topic_info = topic_model.get_topic_info()

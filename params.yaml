@@ -32,6 +32,7 @@ train:
     metric: euclidean
     cluster_selection_method: eom
     prediction_data: true
+evaluate:
   vectorizer:
     model: CountVectorizer
     ngram_range:
@@ -46,7 +47,6 @@ train:
   representation:
     model: MMR
     diversity: 0.2
-evaluate:
   settings:
     similarity_phrase: familievenlig
     top_n: 8

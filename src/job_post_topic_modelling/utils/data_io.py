@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -29,3 +30,16 @@ def load_pretrained_embeddings(filepath: Path):
         print(f"Loading precomputed embeddings from {filepath}")
         embeddings = np.load(filepath)
         return embeddings
+
+
+def load_danish_stop_words(filepath: str) -> list[str]:
+    """
+    Load Danish stop words from a JSON file.
+    Args:
+        filepath (str, optional): Path to the _rds file.
+    Returns:
+        list[str]: List of Danish stop words.
+    """
+    with open(filepath, encoding="utf-8") as f:
+        stop_words = json.load(f)
+    return stop_words

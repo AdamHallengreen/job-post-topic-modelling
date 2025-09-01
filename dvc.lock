@@ -13,8 +13,8 @@ stages:
       size: 10184
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: a50681cf3a6b5f5e8715270a598f9357
-      size: 952
+      md5: 3297065deaae1d40f22f1b0bb8b319a9
+      size: 1356
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -45,12 +45,12 @@ stages:
       size: 6948540
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: 5bcd6eecc5559a3c8995e12be3e1f220
-      size: 6888
+      md5: 8eac46588134d9f66cd15da30d9c8d2f
+      size: 5492
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: a50681cf3a6b5f5e8715270a598f9357
-      size: 952
+      md5: 3297065deaae1d40f22f1b0bb8b319a9
+      size: 1356
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -86,20 +86,6 @@ stages:
             metric: euclidean
             cluster_selection_method: eom
             prediction_data: true
-          vectorizer:
-            model: CountVectorizer
-            ngram_range:
-            - 1
-            - 3
-            min_df: 10
-            max_features: 10000
-          c_TF_IDF:
-            model: c_TF_IDF
-            bm25_weighting: true
-            reduce_frequent_words: true
-          representation:
-            model: MMR
-            diversity: 0.2
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
@@ -111,8 +97,8 @@ stages:
       size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 06cbde84614e9a97c50a271c9c40332f
-      size: 2228022
+      md5: 010add196a51feae81b95785ca77fda9
+      size: 2702439
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -203,16 +189,16 @@ stages:
       size: 1500768
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 06cbde84614e9a97c50a271c9c40332f
-      size: 2228022
+      md5: 010add196a51feae81b95785ca77fda9
+      size: 2702439
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: 7f41f93f7e2ebf39c50b8a98073d44d2
-      size: 3453
+      md5: a3d0b22d80ee6deebf750149cbcc13e3
+      size: 5549
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: a50681cf3a6b5f5e8715270a598f9357
-      size: 952
+      md5: 3297065deaae1d40f22f1b0bb8b319a9
+      size: 1356
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -239,8 +225,8 @@ stages:
       size: 1995
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: a50681cf3a6b5f5e8715270a598f9357
-      size: 952
+      md5: 3297065deaae1d40f22f1b0bb8b319a9
+      size: 1356
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
