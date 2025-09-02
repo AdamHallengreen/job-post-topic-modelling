@@ -2,6 +2,7 @@ prepare:
   settings:
     nobs: null
     split_paragraphs: true
+    split_sentences: false
   star:
     usestar: 0
 embed:
@@ -17,20 +18,20 @@ embed:
 train:
   settings:
     top_n_words: 20
-    calculate_probabilities: true
+    calculate_probabilities: false
     verbose: true
   seed_topics:
     seeds: null
   dimensionality_reduction:
     model: UMAP
-    n_neighbors: 30
+    n_neighbors: 60
     n_components: 5
     min_dist: 0.0
     metric: cosine
     random_state: 42
   clustering:
     model: HDBSCAN
-    min_cluster_size: 60
+    min_cluster_size: 120
     min_samples: 30
     metric: euclidean
     cluster_selection_method: eom

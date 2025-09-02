@@ -1,2 +1,3 @@
 nobs:
 split_paragraphs: True
+split_sentences: False

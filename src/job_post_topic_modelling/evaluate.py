@@ -12,7 +12,11 @@ from sklearn.feature_extraction.text import CountVectorizer
 from job_post_topic_modelling.utils.interactive import try_inter
 
 try_inter()
-from job_post_topic_modelling.utils.data_io import load_danish_stop_words, load_data  # noqa: E402
+from job_post_topic_modelling.utils.data_io import (  # noqa: E402
+    load_danish_stop_words,
+    load_data,
+    load_pretrained_embeddings,
+)
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
 
@@ -114,6 +118,7 @@ if __name__ == "__main__":
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
+    reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
 
     # Choose models
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
@@ -147,6 +152,13 @@ if __name__ == "__main__":
 
         hierarchy_fig = topic_model.visualize_hierarchy()
         log_html(live, "hierarchy_fig.png", hierarchy_fig)
+
+        documents_fig = topic_model.visualize_document_datamap(
+            documents,
+            reduced_embeddings=reduced_embeddings,
+            datamap_kwds={"label_over_points": True, "dynamic_label_size": True},
+        )
+        log_html(live, "documents_fig.png", documents_fig)
 
         # family
         similar_topics, similarity = topic_model.find_topics(par.settings.similarity_phrase, top_n=par.settings.top_n)

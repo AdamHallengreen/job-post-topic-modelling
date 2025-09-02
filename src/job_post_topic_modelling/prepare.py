@@ -303,10 +303,18 @@ if __name__ == "__main__":
     print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {file_path}")
 
     # Split
-    texts = filter_sentences_remove_sensitive(texts, split_paragraphs=par.settings.split_paragraphs)
-    num_splitted_sections = len(texts)
-    unit = "paragraphs" if par.settings.split_paragraphs else "sentences"
-    print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} {unit}")
+    if par.settings.split_sentences:
+        split_paragraphs = False  # split on sentences
+        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        num_splitted_sections = len(texts)
+        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} sentences")
+    elif par.settings.split_paragraphs:
+        split_paragraphs = True  # split on paragraphs
+        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        num_splitted_sections = len(texts)
+        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} paragraphs")
+    else:
+        pass
 
     # Save
     export_texts(texts, texts_file)

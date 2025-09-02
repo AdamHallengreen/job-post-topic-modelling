@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 0887fcdc070c3e5033145eb354ff17ba
-      size: 10184
+      md5: 222036c9845d33a6c713050e68b7de6f
+      size: 10885
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: ce241e37484d0b8e4f95d941bcc936fc
@@ -25,6 +25,7 @@ stages:
           settings:
             nobs:
             split_paragraphs: true
+            split_sentences: false
           star:
             usestar: 0
     outs:
@@ -71,20 +72,20 @@ stages:
         train:
           settings:
             top_n_words: 20
-            calculate_probabilities: true
+            calculate_probabilities: false
             verbose: true
           seed_topics:
             seeds:
           dimensionality_reduction:
             model: UMAP
-            n_neighbors: 30
+            n_neighbors: 60
             n_components: 5
             min_dist: 0.0
             metric: cosine
             random_state: 42
           clustering:
             model: HDBSCAN
-            min_cluster_size: 60
+            min_cluster_size: 120
             min_samples: 30
             metric: euclidean
             cluster_selection_method: eom
@@ -92,16 +93,16 @@ stages:
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 6834a619e773f67643532f042c31f910
-      size: 397
+      md5: a619d92166a7c4e3b363b4ec5564505d
+      size: 398
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c1b7abc48a127c5d99615d286b92cad4
-      size: 774232
+      md5: c407dae7fb3e95826d3ee61c4a06122c
+      size: 338008
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 861a9356bbaef2fed0fd995f782e1211
-      size: 1531860
+      md5: ead48c40c0088fbe4d75c8251c07b702
+      size: 1279908
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -182,22 +183,26 @@ stages:
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
+    - path: data/reduced_embeddings.npy
+      hash: md5
+      md5: e115c8a353c343958afbe9469a4ea03b
+      size: 1020720
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 6834a619e773f67643532f042c31f910
-      size: 397
+      md5: a619d92166a7c4e3b363b4ec5564505d
+      size: 398
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c1b7abc48a127c5d99615d286b92cad4
-      size: 774232
+      md5: c407dae7fb3e95826d3ee61c4a06122c
+      size: 338008
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 861a9356bbaef2fed0fd995f782e1211
-      size: 1531860
+      md5: ead48c40c0088fbe4d75c8251c07b702
+      size: 1279908
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: ac686f453a67e612beea28b2058e4178
-      size: 5396
+      md5: ace4f5969d9ad53d1778e319eece49ae
+      size: 5990
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: ce241e37484d0b8e4f95d941bcc936fc
@@ -208,13 +213,13 @@ stages:
       size: 3412
     - path: src/job_post_topic_modelling/utils/log_html.py
       hash: md5
-      md5: 5ba81ebd3ff00a9d894a98d008eef689
-      size: 526
+      md5: 763aaa1772dd5a56d3095d27b10a3ccf
+      size: 863
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: 7dc0bcec986f709b63ab7a43510238b2
-      size: 61881
+      md5: e83b817307383c5fd3ab15a2dbaf4060
+      size: 26628
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
@@ -224,8 +229,8 @@ stages:
       size: 6948540
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
-      md5: 4f8aeaa36080806da911eb43b0c22bb1
-      size: 1995
+      md5: 1c84836121efe71a5073a11f99973262
+      size: 2430
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: ce241e37484d0b8e4f95d941bcc936fc
@@ -252,3 +257,7 @@ stages:
       hash: md5
       md5: b712c135fae1cfd48ecbb97cca9a5bf3
       size: 391907456
+    - path: data/reduced_embeddings.npy
+      hash: md5
+      md5: e115c8a353c343958afbe9469a4ea03b
+      size: 1020720
