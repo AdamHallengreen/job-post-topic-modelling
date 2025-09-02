@@ -3,7 +3,7 @@
     "step": 0,
     "prepare.py": "0.00 hours",
     "#Topics": 182,
-    "embed.py": "0.14 hours",
-    "train.py": "0.18 hours",
-    "#topics": 110
+    "embed.py": "0.12 hours",
+    "train.py": "0.20 hours",
+    "#topics": 108
 }

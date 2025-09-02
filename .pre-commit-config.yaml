@@ -13,6 +13,7 @@ repos:
         args: [--autofix, --no-sort-keys, --indent=4]
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        exclude: ^dvc.lock
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: "v0.12.7"
