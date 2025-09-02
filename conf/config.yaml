@@ -4,6 +4,7 @@ defaults:
   - embed/settings: default
   - embed/model: sentence_transformers_big
   - train/settings: default
+  - train/seed_topics: blank
   - train/dimensionality_reduction: UMAP
   - train/clustering: HDBSCAN
   - evaluate/vectorizer: CountVectorizer

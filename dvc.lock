@@ -45,8 +45,8 @@ stages:
       size: 6948540
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: b4e9aa08bf0fd551e6e45b059051c89d
-      size: 5336
+      md5: 1ba7eb6973cf433c7f1eb40b8b70fb06
+      size: 6259
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: ce241e37484d0b8e4f95d941bcc936fc
@@ -72,6 +72,261 @@ stages:
           settings:
             top_n_words: 20
             verbose: true
+          seed_topics:
+            seeds:
+            - - fleksibel
+              - fleksibilitet
+              - fleksibel arbejdstid
+              - fleksibel arbejdstid
+              - flekstid
+              - flekstidsordning
+              - flextid
+              - flextidsordning
+              - fixtid
+              - fikstid
+            - - familievenlig
+              - familievenlige
+              - familieliv
+            - - hjemmearbejde
+              - hjemmearbejdsplads
+              - hjemmearbejdsdag
+              - hjemmefra
+            - - vagtskema
+              - vagtplan
+              - spidsbelastning
+            - - natarbejde
+              - weekend
+              - weekendarbejde
+              - helligdage
+              - nattevagt
+              - nattevagte
+              - nattevagterne
+              - aften
+            - - ambitiøs
+              - ambition
+              - udvikling
+              - karriere
+              - udviklingsmuligheder
+              - udviklingsplaner
+              - udviklingsforløb
+              - udviklingsprogram
+            - - faglig
+              - faglighed
+              - sparring
+            - - stillingen
+              - samtaler
+              - snarest muligt
+              - mulig
+              - ansøgning
+              - ringe
+              - ansøgning mail
+              - ansøgning
+              - sende
+              - cv
+              - sende ansøgning
+              - ansøgning cv
+              - send
+              - send ansøgning
+              - ansøgning sende
+              - modtage ansøgning
+            - - køn
+              - etnisk
+              - religion
+              - religion etnisk
+              - uanset alder
+              - alder køn
+              - etnisk tilhørsforhold
+              - tilhørsforhold
+            - - mandag
+              - tirsdag
+              - onsdag
+              - torsdag
+              - fredag
+              - lørdag
+              - søndag
+            - - finansministeri
+              - overenskomst
+              - overenskomst finansministeri
+              - gældende
+            - - rengøringsvogn
+            - - orlov
+              - ferie
+              - feriefridage
+              - sygeorlov
+              - barselsorlov
+            - - bonus
+              - provision
+              - incitamenter
+              - præstationsløn
+              - salgsbonus
+              - mål
+              - produktivitet
+            - - sundhedsforsikring
+              - helbredsforsikring
+              - sygeforsikring
+              - sundhedsordning
+              - privathospital
+            - - pension
+              - pensionsordning
+              - arbejdsmarkedspension
+              - pensionsbidrag
+              - pensionsaftale
+            - - kantine
+              - kantineordning
+              - frokostordning
+              - personalekøb
+            - - fitnessrum
+              - kaffebar
+              - ergonomisk
+              - kontorfaciliteter
+            - - bærbar
+              - mobiltelefon
+              - dataabonnement
+              - værktøj
+              - værnemidler
+            - - sikkerhed
+              - værnemidler
+              - fare
+              - compliance
+              - sikkerhedstræning
+            - - fastansættelse
+              - fuldtid
+              - stabilitet
+              - langtidskontrakt
+              - jobsikkerhed
+              - anciennitet
+              - tidsubegrænset
+            - - tidsbegrænset
+              - projektansættelse
+              - midlertidig
+              - midlertidigansættelse
+              - prøvetidsansættelse
+              - vikariat
+              - kontraktansættelse
+              - praktik
+            - - kultur
+              - værdier
+              - inklusion
+              - diversitet
+              - bæredygtighed
+              - samfundsindsats
+            - - tungt
+              - fysisk
+              - fysiskarbejde
+              - manuelt
+              - anstrengende
+            - - teamarbejde
+              - team
+              - samarbejde
+              - kolleger
+              - tværfaglig
+              - hold
+            - - uddannelse
+              - læring
+              - udvikling
+              - karrierevækst
+              - opkvalificering
+              - mentoring
+              - kurser
+            - - sundhed
+              - pleje
+              - sygehus
+              - klinik
+            - - byggeri
+              - håndværker
+              - tømrer
+              - murer
+            - - detailhandel
+              - butik
+              - ekspedient
+              - kasse
+            - - logistik
+              - lager
+              - chauffør
+              - truck
+            - - it
+              - softwareudvikler
+              - programmering
+              - udvikler
+            - - finans
+              - regnskab
+              - bogholder
+              - controller
+            - - produktion
+              - fabrik
+              - montage
+              - operatør
+            - - uddannelse
+              - lærer
+              - undervisning
+              - pædagog
+            - - hospitality
+              - restaurant
+              - kok
+              - tjener
+            - - offentlig
+              - kommune
+              - rådhus
+              - forvaltning
+              - myndighed
+              - fuldmægtig
+              - ministerium
+              - departement
+              - styrelse
+            - - kirke
+              - sogn
+              - menighedsråd
+            - - militær
+              - forsvar
+              - soldat
+              - officer
+              - forsvarsministeri
+            - - projektleder
+              - projektstyring
+              - planlægning
+              - koordinere
+            - - konsulent
+              - rådgiver
+              - analyse
+              - implementering
+            - - sosuassistent
+              - social sundhedsassistent
+              - pleje
+              - borgerkontakt
+            - - sygeplejerske
+              - patient
+              - klinisk
+              - journal
+            - - ingeniør
+              - konstruktion
+              - design
+              - beregning
+            - - elektriker
+              - installation
+              - fejlfinding
+              - serviceopgaver
+            - - kundeservicemedarbejder
+              - support
+              - telefon
+              - kundehenvendelser
+            - - maskinoperatør
+              - produktion
+              - vedligehold
+              - skiftehold
+            - - økonom
+              - budget
+              - controlling
+              - afstemning
+            - - jurist
+              - kontrakt
+              - lovgivning
+              - compliance
+            - - pædagog
+              - børnehave
+              - skole
+              - undervisning
+            name: flex1
+            anchor_strength: 6
           dimensionality_reduction:
             model: UMAP
             n_neighbors: 30
@@ -89,16 +344,16 @@ stages:
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: a619d92166a7c4e3b363b4ec5564505d
-      size: 398
+      md5: f87673d15e1304b55628f4ac39c5690c
+      size: 6705
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c1b7abc48a127c5d99615d286b92cad4
-      size: 774232
+      md5: db2458dc4ef1a76f7fd16097629363d4
+      size: 635992
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 861a9356bbaef2fed0fd995f782e1211
-      size: 1531860
+      md5: 619034ef05594bb0d43609129ff0314a
+      size: 1449623
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -181,16 +436,16 @@ stages:
     deps:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: a619d92166a7c4e3b363b4ec5564505d
-      size: 398
+      md5: f87673d15e1304b55628f4ac39c5690c
+      size: 6705
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c1b7abc48a127c5d99615d286b92cad4
-      size: 774232
+      md5: db2458dc4ef1a76f7fd16097629363d4
+      size: 635992
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 861a9356bbaef2fed0fd995f782e1211
-      size: 1531860
+      md5: 619034ef05594bb0d43609129ff0314a
+      size: 1449623
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
       md5: ac686f453a67e612beea28b2058e4178
@@ -210,8 +465,8 @@ stages:
     outs:
     - path: output/topic_info.csv
       hash: md5
-      md5: 7dc0bcec986f709b63ab7a43510238b2
-      size: 61881
+      md5: 1bf25ac837aef628145b4bd8db02e1a6
+      size: 50393
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:

@@ -40,6 +40,14 @@ class UnknownModelError(Exception):
         super().__init__(f"Unknown model: {model_name}")
 
 
+class InvalidSeedTopicListError(Exception):
+    """Exception raised when the seed topic list is not a list of lists as required by BERTopic."""
+
+    def __init__(self, value):
+        message = f"Invalid seed topic list: {value}. It must be a list of lists for BERTopic's seed_topic_list."
+        super().__init__(message)
+
+
 def rescale(x, inplace=False):
     """Rescale an embedding so optimization will not have convergence issues."""
     if not inplace:
@@ -120,6 +128,14 @@ if __name__ == "__main__":
     clustering_model = get_clustering_model(par)
     vectorizer_model = CountVectorizer(stop_words=stop_words)
 
+    # Handle seed topic input
+    if par.seed_topics.seeds is not None:
+        seed_topic_list = OmegaConf.to_container(par.seed_topics.seeds, resolve=True)
+        if not isinstance(seed_topic_list, list) or not all(isinstance(x, list) for x in seed_topic_list):
+            raise InvalidSeedTopicListError(seed_topic_list)
+    else:
+        seed_topic_list = None
+
     # Run BERTopic
     topic_model = BERTopic(
         # Modules
@@ -127,6 +143,8 @@ if __name__ == "__main__":
         umap_model=dimensionality_reduction_model,
         hdbscan_model=clustering_model,
         vectorizer_model=vectorizer_model,
+        # Seeded topics
+        seed_topic_list=seed_topic_list,
         # Hyperparameters
         top_n_words=par.settings.top_n_words,
         nr_topics="auto",
