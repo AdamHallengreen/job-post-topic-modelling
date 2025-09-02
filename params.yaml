@@ -11,7 +11,7 @@ embed:
     device: cpu
     num_workers: 1
   model:
-    embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
     use_model2vec: false
     pca_dims: 384
 train:
@@ -20,15 +20,15 @@ train:
     verbose: true
   dimensionality_reduction:
     model: UMAP
-    n_neighbors: 15
+    n_neighbors: 30
     n_components: 5
     min_dist: 0.0
     metric: cosine
     random_state: 42
   clustering:
     model: HDBSCAN
-    min_cluster_size: 15
-    min_samples: 15
+    min_cluster_size: 60
+    min_samples: 30
     metric: euclidean
     cluster_selection_method: eom
     prediction_data: true
@@ -48,5 +48,5 @@ evaluate:
     model: MMR
     diversity: 0.2
   settings:
-    similarity_phrase: familievenlig
+    similarity_phrase: fleksibel
     top_n: 8

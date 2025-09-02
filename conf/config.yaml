@@ -2,7 +2,7 @@ defaults:
   - prepare/settings: full
   - prepare/star: local
   - embed/settings: default
-  - embed/model: sentence_transformers
+  - embed/model: sentence_transformers_big
   - train/settings: default
   - train/dimensionality_reduction: UMAP
   - train/clustering: HDBSCAN
