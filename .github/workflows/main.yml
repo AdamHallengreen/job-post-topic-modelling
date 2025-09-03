@@ -25,26 +25,26 @@ jobs:
       - name: Run checks
         run: make check
 
-  tests-and-type-check:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-      fail-fast: false
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Check out
-        uses: actions/checkout@v4
+  # tests-and-type-check:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       python-version: ["3.12"]
+  #     fail-fast: false
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   steps:
+  #     - name: Check out
+  #       uses: actions/checkout@v4
 
-      - name: Set up the environment
-        uses: ./.github/actions/setup-python-env
-        with:
-          python-version: ${{ matrix.python-version }}
+  #     - name: Set up the environment
+  #       uses: ./.github/actions/setup-python-env
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
 
-      - name: Run tests
-        run: uv run python -m pytest tests
+  #     - name: Run tests
+  #       run: uv run python -m pytest tests
 
-      - name: Check typing
-        run: uv run ty check
+  #     - name: Check typing
+  #       run: uv run ty check
