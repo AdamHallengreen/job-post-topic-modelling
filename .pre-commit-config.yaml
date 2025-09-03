@@ -9,7 +9,7 @@ repos:
       - id: check-json
         exclude: ^.devcontainer/devcontainer.json
       - id: pretty-format-json
-        exclude: ^.devcontainer/devcontainer.json
+        exclude: ^(.devcontainer/devcontainer.json|data/)
         args: [--autofix, --no-sort-keys, --indent=4]
       - id: end-of-file-fixer
       - id: trailing-whitespace
