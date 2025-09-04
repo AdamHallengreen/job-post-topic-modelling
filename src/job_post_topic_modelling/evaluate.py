@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -114,7 +115,12 @@ if __name__ == "__main__":
     # Load parameters
     par = OmegaConf.load(params_path).evaluate
 
+    # Process
+    print(f"Starting {Path(__file__).name}")
+    start = time.time()
+
     # load
+    print("Loading data...")
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
@@ -126,6 +132,7 @@ if __name__ == "__main__":
     representation_model = get_representation_model(par)
 
     # Adjust topic representation
+    print("Updating topic representation...")
     topic_model.update_topics(
         documents,
         vectorizer_model=vectorizer_model,
@@ -133,6 +140,7 @@ if __name__ == "__main__":
         representation_model=representation_model,
     )
 
+    print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         topic_info = topic_model.get_topic_info()
         output_file = output_dir / "topic_info.csv"
@@ -153,12 +161,12 @@ if __name__ == "__main__":
         hierarchy_fig = topic_model.visualize_hierarchy()
         log_html(live, "hierarchy_fig.png", hierarchy_fig)
 
-        documents_fig = topic_model.visualize_document_datamap(
-            documents,
-            reduced_embeddings=reduced_embeddings,
-            datamap_kwds={"label_over_points": True, "dynamic_label_size": True},
-        )
-        log_html(live, "documents_fig.png", documents_fig)
+        # documents_fig = topic_model.visualize_document_datamap(
+        #     documents,
+        #     reduced_embeddings=reduced_embeddings,
+        #     datamap_kwds={"label_over_points": True, "dynamic_label_size": True},
+        # )
+        # log_html(live, "documents_fig.png", documents_fig)
 
         # family
         similar_topics, similarity = topic_model.find_topics(par.settings.similarity_phrase, top_n=par.settings.top_n)
@@ -168,3 +176,10 @@ if __name__ == "__main__":
             title=f"Similar Topics to '{par.settings.similarity_phrase}'",
         )
         log_html(live, "barchart_fig.png", barchart_fig)
+
+        # Wrap up
+        stop = time.time()
+        hours = (stop - start) / 3600
+        print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
+
+        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)

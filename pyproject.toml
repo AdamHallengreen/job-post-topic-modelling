@@ -30,10 +30,10 @@ dependencies = [
     "nltk>=3.9.1",
     "numpy>=2.0.2",
     "sentence-transformers>=5.1.0",
-    "umap>=0.1.1",
     "scikit-learn>=1.6.1",
     "hdbscan>=0.8.40",
     "ipython>=8.18.1",
+    "umap-learn>=0.5.9.post2",
 ]
 
 [project.urls]

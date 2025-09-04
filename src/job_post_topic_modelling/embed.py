@@ -27,12 +27,13 @@ if __name__ == "__main__":
     start = time.time()
 
     # Load
+    print("Loading data...")
     documents = load_data(
         str(data_dir / "texts.parquet"), text_col=par.text_col if hasattr(par, "text_col") else "text"
     )
 
     # Compute embeddings
-    print("Encoding documents...")
+    print("Embedding documents...")
     if par.model.use_model2vec:
         static_embedding = StaticEmbedding.from_distillation(
             par.model.embedding_model, device=par.settings.device, pca_dims=par.model.pca_dims

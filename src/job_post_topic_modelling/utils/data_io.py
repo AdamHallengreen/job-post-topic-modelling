@@ -27,7 +27,6 @@ def load_pretrained_embeddings(filepath: Path):
     Load precomputed embeddings from output/embeddings.npy if available, otherwise return the embedding model.
     """
     if filepath.exists():
-        print(f"Loading precomputed embeddings from {filepath}")
         embeddings = np.load(filepath)
         return embeddings
 

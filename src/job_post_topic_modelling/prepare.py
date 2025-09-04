@@ -294,10 +294,12 @@ if __name__ == "__main__":
     start = time.time()
 
     # Load
+    print("Loading data...")
     texts = load_data(file_path, par)
     num_texts_loaded = len(texts)
 
     # Clean
+    print("Cleaning data...")
     texts = clean_data(texts)
     num_texts_used = len(texts)
     print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {file_path}")
@@ -318,7 +320,7 @@ if __name__ == "__main__":
 
     # Save
     export_texts(texts, texts_file)
-    print(f"    - Export texts to {texts_file}")
+    print(f"Exported texts to {texts_file}")
 
     # Wrap up
     stop = time.time()

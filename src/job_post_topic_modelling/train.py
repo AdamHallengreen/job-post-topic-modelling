@@ -118,6 +118,7 @@ if __name__ == "__main__":
     start = time.time()
 
     # Load
+    print("Loading data...")
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings.npy")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
@@ -137,6 +138,7 @@ if __name__ == "__main__":
         seed_topic_list = None
 
     # Run BERTopic
+    print("Training BERTopic model...")
     topic_model = BERTopic(
         # Modules
         embedding_model=embedding_model,
@@ -161,6 +163,7 @@ if __name__ == "__main__":
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=embedding_model_name,
     )
+    print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
 
     # Wrap up
     stop = time.time()

@@ -35,8 +35,6 @@ stages:
     - train
     outs:
     - models/bertopic_model/config.json
-    # - models/bertopic_model/ctfidf_config.json
-    # - models/bertopic_model/ctfidf.safetensors
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
   evaluate:

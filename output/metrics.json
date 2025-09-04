@@ -1,9 +1,10 @@
 {
     "predict.py": "0.03 hours",
     "step": 0,
-    "prepare.py": "0.00 hours",
+    "prepare.py": "0.01 hours",
     "#Topics": 182,
     "embed.py": "0.12 hours",
     "train.py": "0.14 hours",
-    "#topics": 110
+    "#topics": 110,
+    "evaluate.py": "0.02 hours"
 }
