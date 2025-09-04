@@ -1,14 +1,56 @@
 prepare:
   settings:
-    nobs: 1000
-    batch_size: 50
-    threads: 4
-    chunk_size: 500
-  preprocessing:
-    model: da_core_news_lg
-    pipeline:
-    - tok2vec
-    - lemmatizer
-    keep_negations: true
+    nobs: null
+    split_paragraphs: true
+    split_sentences: false
   star:
     usestar: 0
+embed:
+  settings:
+    show_progress_bar: true
+    batch_size: 256
+    device: cpu
+    num_workers: 1
+  model:
+    embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    use_model2vec: false
+    pca_dims: 384
+train:
+  settings:
+    top_n_words: 20
+    calculate_probabilities: false
+    verbose: true
+  seed_topics:
+    seeds: null
+  dimensionality_reduction:
+    model: UMAP
+    n_neighbors: 60
+    n_components: 5
+    min_dist: 0.0
+    metric: cosine
+    random_state: 42
+  clustering:
+    model: HDBSCAN
+    min_cluster_size: 120
+    min_samples: 30
+    metric: euclidean
+    cluster_selection_method: eom
+    prediction_data: true
+evaluate:
+  vectorizer:
+    model: CountVectorizer
+    ngram_range:
+    - 1
+    - 3
+    min_df: 10
+    max_features: 10000
+  c_TF_IDF:
+    model: c_TF_IDF
+    bm25_weighting: true
+    reduce_frequent_words: true
+  representation:
+    model: MMR
+    diversity: 0.2
+  settings:
+    similarity_phrase: fleksibel
+    top_n: 8

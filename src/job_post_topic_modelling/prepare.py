@@ -1,10 +1,13 @@
 import os
+import re
 import time
 from pathlib import Path
 
+# For plotting
 import polars as pl
 from dvclive import Live
 from lingua import LanguageDetectorBuilder
+from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
 
 from job_post_topic_modelling.utils.interactive import try_inter
@@ -122,9 +125,17 @@ def load_excel(file_path: Path, sheet_name: str = "Sheet1") -> pl.DataFrame:
     Returns:
         pl.DataFrame: DataFrame representing the rows in the Excel file.
     """
-    df = pl.read_excel(
-        file_path, sheet_name=sheet_name, columns=["ID", "Text"], schema_overrides={"ID": pl.String, "Text": pl.String}
-    ).rename({"ID": "id", "Text": "text"})
+
+    df = (
+        pl.read_excel(
+            file_path,
+            sheet_name=sheet_name,
+            columns=["ID", "Text"],
+            schema_overrides={"ID": pl.String, "Text": pl.String},
+        )
+        .rename({"ID": "id", "Text": "text"})
+        .slice(0, par.settings.nobs)
+    )
     return df
 
 
@@ -171,9 +182,73 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     df = rename_jobcenter_obs(df)
 
     # remove non-danish posts
+    df = detect_language(df)
     df = df.filter(pl.col("language") == "DAN")
 
+    # clean text column
+    df = df.with_columns(
+        pl.col("text")
+        # Remove HTML tags
+        .str.replace_all(r"<[^>]+>", " ")
+        # Remove _x0009_
+        .str.replace_all(r"_x0009_", " ")
+        # Remove extra tabs and spaces except line breaks
+        .str.replace_all(r"[ \t]+", " ")
+        # Remove leading and trailing whitespace
+        .str.strip_chars()
+        .alias("text")
+    )
+
     return df
+
+
+def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> pl.DataFrame:
+    """
+    Splits texts into sentences or paragraphs, removes those containing sensitive info,
+    and returns a DataFrame with unique labels and filtered text.
+    """
+    # Compile regex patterns for sensitive info
+    date_pattern = re.compile(
+        r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
+        r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
+        re.IGNORECASE,
+    )
+    phone_pattern = re.compile(r"\b(\d{8}|(\d{2}\s){3}\d{2})\b")
+    email_pattern = re.compile(r"\b[\w\.-]+@[\w\.-]+\.\w+\b")
+    homepage_pattern = re.compile(
+        r"http[s]?://\S+|www\.\S+|\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", re.IGNORECASE
+    )
+
+    def is_sensitive(text: str) -> bool:
+        return (
+            date_pattern.search(text)
+            or phone_pattern.search(text)
+            or email_pattern.search(text)
+            or homepage_pattern.search(text)
+        )
+
+    labels, filtered_texts = [], []
+    label_col, text_col = df.columns[0], df.columns[1]
+
+    for label, text in zip(df[label_col], df[text_col]):
+        idx = 0
+        text = str(text)
+        paragraphs = re.split(r"(?:\r?\n){2,}", text) if split_paragraphs else [text]
+        for para in paragraphs:
+            sentences = sent_tokenize(para, language="danish")
+            filtered_sents = [re.sub(r"[\r\n]+", " ", sent).strip() for sent in sentences if not is_sensitive(sent)]
+            if split_paragraphs:
+                if filtered_sents:
+                    labels.append(f"{label}_{idx:02d}")
+                    filtered_texts.append(" ".join(filtered_sents))
+                    idx += 1
+            else:
+                for sent_clean in filtered_sents:
+                    labels.append(f"{label}_{idx:02d}")
+                    filtered_texts.append(sent_clean)
+                    idx += 1
+
+    return pl.DataFrame({"label": labels, "text": filtered_texts})
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
@@ -214,21 +289,45 @@ if __name__ == "__main__":
     # Load parameters
     par = OmegaConf.load(params_path).prepare
 
+    # Process
+    print(f"Starting {Path(__file__).name}")
     start = time.time()
-    print("Starting prepare.py")
-    # Process the data
-    texts = load_data(file_path, par)[: par.settings.nobs]
-    texts = detect_language(texts)
+
+    # Load
+    print("Loading data...")
+    texts = load_data(file_path, par)
+    num_texts_loaded = len(texts)
+
+    # Clean
+    print("Cleaning data...")
     texts = clean_data(texts)
-    print(f"Loaded {len(texts)} texts from {file_path}")
+    num_texts_used = len(texts)
+    print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {file_path}")
 
+    # Split
+    if par.settings.split_sentences:
+        split_paragraphs = False  # split on sentences
+        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        num_splitted_sections = len(texts)
+        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} sentences")
+    elif par.settings.split_paragraphs:
+        split_paragraphs = True  # split on paragraphs
+        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        num_splitted_sections = len(texts)
+        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} paragraphs")
+    else:
+        pass
+
+    # Save
     export_texts(texts, texts_file)
-    print(f"Texts exported to {texts_file}")
+    print(f"Exported texts to {texts_file}")
 
+    # Wrap up
     stop = time.time()
     hours = (stop - start) / 3600
-    print(f"Finished prepare.py in {hours:.2f} hours")
+    print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
+
     # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True) as live:
+    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         # Log metrics
-        live.log_metric("prepare.py", f"{hours:.2f} hours", plot=False)
+        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)

@@ -1,0 +1,3 @@
+top_n_words: 20
+calculate_probabilities: False # Only works with HDBSCAN
+verbose: True

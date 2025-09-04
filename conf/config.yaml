@@ -1,4 +1,13 @@
 defaults:
-  - prepare/settings: small
-  - prepare/preprocessing: lgmodel
+  - prepare/settings: full
   - prepare/star: local
+  - embed/settings: default
+  - embed/model: sentence_transformers_big
+  - train/settings: default
+  - train/seed_topics: blank
+  - train/dimensionality_reduction: UMAP
+  - train/clustering: HDBSCAN
+  - evaluate/vectorizer: CountVectorizer
+  - evaluate/c_TF_IDF: c_TF_IDF
+  - evaluate/representation: MMR
+  - evaluate/settings: default

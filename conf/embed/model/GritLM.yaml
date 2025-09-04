@@ -1,0 +1,3 @@
+embedding_model: "GritLM/GritLM-7B"
+use_model2vec: True
+pca_dims: 4096 # This is the dimension used in the pre-trained model. Don't change this.

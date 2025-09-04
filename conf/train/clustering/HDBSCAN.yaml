@@ -1,0 +1,6 @@
+model: HDBSCAN
+min_cluster_size: 120
+min_samples: 30
+metric: euclidean
+cluster_selection_method: eom
+prediction_data: True

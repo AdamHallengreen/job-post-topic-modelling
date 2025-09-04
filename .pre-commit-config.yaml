@@ -9,14 +9,18 @@ repos:
       - id: check-json
         exclude: ^.devcontainer/devcontainer.json
       - id: pretty-format-json
-        exclude: ^.devcontainer/devcontainer.json
-        args: [--autofix, --no-sort-keys]
+        exclude: ^(.devcontainer/devcontainer.json|data/)
+        args: [--autofix, --no-sort-keys, --indent=4]
       - id: end-of-file-fixer
+        exclude: ^data/
       - id: trailing-whitespace
+        exclude: ^(dvc.lock|data/)
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: "v0.12.7"
     hooks:
       - id: ruff-check
         args: [ --exit-non-zero-on-fix ]
+        exclude: ^data/
       - id: ruff-format
+        exclude: ^data/

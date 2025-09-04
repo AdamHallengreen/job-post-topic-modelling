@@ -4,9 +4,57 @@ stages:
     deps:
     - data/Jobnet.xlsx
     - src/job_post_topic_modelling/prepare.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
     params:
     - prepare
     outs:
     - data/texts.parquet
+  embed:
+    cmd: python src/job_post_topic_modelling/embed.py
+    deps:
+    - data/texts.parquet
+    - src/job_post_topic_modelling/embed.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    params:
+    - embed
+    outs:
+    - data/embeddings.npy
+    - data/reduced_embeddings.npy
+  train:
+    cmd: python src/job_post_topic_modelling/train.py
+    deps:
+    - data/texts.parquet
+    - data/embeddings.npy
+    - src/job_post_topic_modelling/train.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    params:
+    - embed
+    - train
+    outs:
+    - models/bertopic_model/config.json
+    - models/bertopic_model/topic_embeddings.safetensors
+    - models/bertopic_model/topics.json
+  evaluate:
+    cmd: python src/job_post_topic_modelling/evaluate.py
+    deps:
+    - data/reduced_embeddings.npy
+    - models/bertopic_model/config.json
+    - models/bertopic_model/topic_embeddings.safetensors
+    - models/bertopic_model/topics.json
+    - src/job_post_topic_modelling/evaluate.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    - src/job_post_topic_modelling/utils/log_html.py
+    outs:
+    - output/topic_info.csv
 metrics:
 - output/metrics.json
+plots:
+- output/plots/images
+artifacts:
+  topic_info:
+    path: output/topic_info.csv
+    type: dataset

@@ -1,0 +1,4 @@
+show_progress_bar: True
+batch_size: 256
+device: "cpu"
+num_workers: 1
