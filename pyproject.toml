@@ -28,6 +28,11 @@ dependencies = [
     "bertopic>=0.17.3",
     "matplotlib>=3.9.4",
     "nltk>=3.9.1",
+    "numpy>=2.0.2",
+    "sentence-transformers>=5.1.0",
+    "umap>=0.1.1",
+    "scikit-learn>=1.6.1",
+    "hdbscan>=0.8.40",
 ]
 
 [project.urls]
@@ -45,13 +50,14 @@ dev = [
     "ruff>=0.11.5",
     "ipykernel>=6.30.1",
     "notebook>=7.4.5",
+    "ipython>=8.18.1",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.wheel]
+[tooluv .hatch.build.targets.wheel]
 packages = ["src/job_post_topic_modelling"]
 
 [tool.ty.environment]
