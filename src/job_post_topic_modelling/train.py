@@ -151,7 +151,7 @@ if __name__ == "__main__":
         calculate_probabilities=par.settings.calculate_probabilities,
         # Hyperparameters
         top_n_words=par.settings.top_n_words,
-        nr_topics="auto",
+        nr_topics=par.settings.nr_topics,
         verbose=par.settings.verbose,
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)

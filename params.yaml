@@ -19,6 +19,7 @@ train:
   settings:
     top_n_words: 20
     calculate_probabilities: false
+    nr_topics: null
     verbose: true
   seed_topics:
     seeds: null
@@ -28,14 +29,15 @@ train:
     n_components: 5
     min_dist: 0.0
     metric: cosine
-    random_state: 42
+    random_state: null
+    low_memory: true
   clustering:
     model: HDBSCAN
-    min_cluster_size: 120
-    min_samples: 30
+    min_cluster_size: 1000
+    min_samples: 500
     metric: euclidean
-    cluster_selection_method: eom
-    prediction_data: true
+    cluster_selection_method: leaf
+    prediction_data: false
 evaluate:
   vectorizer:
     model: CountVectorizer
@@ -43,10 +45,10 @@ evaluate:
     - 1
     - 3
     min_df: 10
-    max_features: 10000
+    max_features: 100000
   c_TF_IDF:
     model: c_TF_IDF
-    bm25_weighting: true
+    bm25_weighting: false
     reduce_frequent_words: true
   representation:
     model: MMR
