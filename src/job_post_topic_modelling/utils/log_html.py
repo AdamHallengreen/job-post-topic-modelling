@@ -47,14 +47,19 @@ def log_html(live, fig_name, fig):
         # Plotly figure
         try:
             fig.write_image(str(fig_path))
+            live.log_image(fig_name, str(fig_path))
         except Exception as e:
             print("Plotly write_image failed, trying conversion to Matplotlib")
             print(f"Error was: \n{e}")
             # Fallback: convert to Matplotlib and save
-            mpl_fig = plotly_to_matplotlib(fig)
-            mpl_fig.figure.savefig(str(fig_path), bbox_inches="tight")
+            try:
+                mpl_fig = plotly_to_matplotlib(fig)
+                mpl_fig.figure.savefig(str(fig_path), bbox_inches="tight")
+                live.log_image(fig_name, str(fig_path))
+            except Exception as e2:
+                print("Conversion to Matplotlib also failed, skipping figure logging")
+                print(f"Error was: \n{e2}")
 
-        live.log_image(fig_name, str(fig_path))
     elif isinstance(fig, MatplotlibFigure):
         # Matplotlib figure
         fig.savefig(str(fig_path), bbox_inches="tight")

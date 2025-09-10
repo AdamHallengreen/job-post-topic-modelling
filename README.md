@@ -82,24 +82,12 @@ I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on 
 hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
-How to install chromium and dependecies (what I did, all steps might not be necesary )
+Downgrade kaleido so you don't need chrom (which needs the internet):
 ```
-conda install -c esss chromium
-conda install -c esss nss  libcups xorg-libxcomposite xorg-libxdamage \
-               xorg-libxfixes xorg-libxrandr  pango cairo alsa-lib xkbcommon mesa-libgbm atk-bridge where not found
-conda install -c conda-forge \
-  libxkbcommon libgbm alsa-lib nss cups pango cairo atk-1.0 at-spi2-atk \
-  xorg-libxcomposite xorg-libxdamage xorg-libxfixes xorg-libxrandr
-conda install -c conda-forge xorg-libxscrnsaver
-
-conda install -c conda-forge libXss
-
+pip uninstall -y kaleido plotly
+pip install "kaleido==0.2.1" "plotly<6"
 ```
-xkbcommon mesa-libgbm atk-bridge where not found in the first
-cups libgbm not found in the second
-I also used `!ldd chromepath | grep "not found" || true`
-to check missing depdendencies
-where chrome path can be chromepath can be found in python: `import shutil; shutil.which("chrome")`
+
 
 Then use the following pip command to install the rest:
 
