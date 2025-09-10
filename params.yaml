@@ -1,10 +1,10 @@
 prepare:
   settings:
-    nobs: null
+    nobs: 100000
     split_paragraphs: true
     split_sentences: false
   star:
-    usestar: 0
+    usestar: 1
 embed:
   settings:
     show_progress_bar: true
