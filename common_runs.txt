@@ -17,17 +17,16 @@ dvc exp run --queue -S "prepare/settings=smallish"  -S "prepare/star=star"
 
 
 
+dvc exp run --queue  -S "prepare/settings=smallish" -S "embed/model=sentence_transformers_big,sentence_transformers_small" -S "embed.model.use_model2vec=True,False" 
 
-donwlaod nlkt language punkt_tab 
-follow link: https://stackoverflow.com/questions/77131746/how-to-download-punkt-tokenizer-in-nltk
+dvc exp run --queue  -S "prepare/settings=smallish" -S "prepare.settings.split_sentences=True"  -S "embed/settings=optimize_sentence"  -S "embed/model=sentence_transformers_small,sentence_transformers_big"  -S "embed.model.use_model2vec=True,False"
 
-
-
+dvc exp run --queue
 
 
 dvc queue start -j7
 
-dvc queue logs 1cc76d2 --follow
+dvc queue logs 2f9dcd3 --follow
 
 dvc queue stop --kill
 
