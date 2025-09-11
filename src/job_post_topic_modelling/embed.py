@@ -24,7 +24,8 @@ def get_embedding_model_name(embedding_model_name: str):
         # Optional: force strict offline behavior
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
-        if embedding_model_name == "sentence-transformers/paraphrase-multilingual-mpnet-base-v2":
+        if embedding_model_name in ["sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+                                    'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2']:
             pref = rf"/home/{user}@PROD.SITAD.DK/code/help/installations/"
         else:
             raise ValueError(f"Model {embedding_model_name} not recognized in STATA server setup.")  # noqa: TRY003

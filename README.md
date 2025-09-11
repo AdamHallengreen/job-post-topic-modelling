@@ -77,7 +77,7 @@ Which can then be used to install the packages in a given environment using pip.
 And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
 Other data for packages have to manually loaded manually (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
 
-I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`):
+I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
 \# Make sure hf CLI is installed: pip install -U "huggingface_hub[cli]"
 hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
