@@ -1,3 +1,4 @@
+import os
 import time
 from pathlib import Path
 
@@ -9,6 +10,37 @@ from sentence_transformers.models import StaticEmbedding
 from umap import UMAP
 
 from job_post_topic_modelling.utils.data_io import load_data
+
+
+def get_embedding_model_name(embedding_model_name: str):
+    """
+    Get the embedding model name, checking if running on STATA server.
+    This is because the star server needs a local path
+    """
+
+    # Check if running on STATA server, if yes set up path to load the correct SentenceTransformer
+    if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling"]:
+        user = os.popen("whoami").read().strip()  # noqa: S605, S607
+        # Optional: force strict offline behavior
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        if embedding_model_name == "sentence-transformers/paraphrase-multilingual-mpnet-base-v2":
+            pref = rf"/home/{user}@PROD.SITAD.DK/code/help/installations/"
+        else:
+            raise ValueError(f"Model {embedding_model_name} not recognized in STATA server setup.")  # noqa: TRY003
+    else:
+        pref = ""
+    return pref + embedding_model_name
+
+
+def get_embedding_model(embedding_model_name: str):
+    """
+    Get the embedding model name, checking if running on STATA server.
+    This is because the star server needs a local path
+    """
+
+    return SentenceTransformer(get_embedding_model_name(embedding_model_name))
+
 
 if __name__ == "__main__":
     # Set up paths
@@ -34,13 +66,17 @@ if __name__ == "__main__":
 
     # Compute embeddings
     print("Embedding documents...")
+
     if par.model.use_model2vec:
+        # Not tested for star server yet
+        embedding_model_name = get_embedding_model_name(par.model.embedding_model)
         static_embedding = StaticEmbedding.from_distillation(
-            par.model.embedding_model, device=par.settings.device, pca_dims=par.model.pca_dims
+            embedding_model_name, device=par.settings.device, pca_dims=par.model.pca_dims
         )
         sentence_model = SentenceTransformer(modules=[static_embedding])
     else:
-        sentence_model = SentenceTransformer(par.model.embedding_model)
+        sentence_model = get_embedding_model(par.model.embedding_model)
+
     embeddings = sentence_model.encode(
         documents,
         show_progress_bar=par.settings.show_progress_bar,

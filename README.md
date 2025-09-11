@@ -64,6 +64,54 @@ To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookie
 
 
 
+
+## Notes about working on the star server
+
+On the star server uv doesn't work. But instead, you can (from a computer where it does work) create a requirement.txt file using:
+
+```
+uv export --no-emit-workspace --no-dev --no-annotate --no-header --no-hashes --output-file requirements.txt
+```
+
+Which can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
+And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
+Other data for packages have to manually loaded manually (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
+
+I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`):
+\# Make sure hf CLI is installed: pip install -U "huggingface_hub[cli]"
+hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
+
+Downgrade kaleido so you don't need chrom (which needs the internet):
+```
+pip uninstall -y kaleido plotly
+pip install "kaleido==0.2.1" "plotly<6"
+```
+
+
+Then use the following pip command to install the rest:
+
+```
+pip install -r requirements.txt
+```
+
+You also need to tell the environment that job-post-nlp is a package, by running:
+
+```
+python -m pip install -e .
+```
+
+I also had some issues where I had to force a reinstall of spacy-loggers
+
+Since uv doesn't work I've also install precommit:
+ `pip install pre-commit`
+ and linked the requirements file:
+ `echo 'pre-commit' >> requirements.txt`
+You can the pre-commit and get ruff suggestions using:
+`pre-commit run -a`
+
+---
+
 ---
 
 Repository initiated with [fpgmaas/cookiecutter-uv](https://github.com/fpgmaas/cookiecutter-uv).
