@@ -80,6 +80,7 @@ Other data for packages have to manually loaded manually (as a zip file ) like p
 I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
 \# Make sure hf CLI is installed: pip install -U "huggingface_hub[cli]"
 hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
 Downgrade kaleido so you don't need chrom (which needs the internet):
