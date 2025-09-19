@@ -87,7 +87,7 @@ if __name__ == "__main__":
     )
 
     # Reduce embedding dimensions
-    reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric="cosine").fit_transform(embeddings)
+    reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric="cosine",unique=True).fit_transform(embeddings)
 
     # Save
     np.save(embeddings_path, embeddings)
