@@ -124,7 +124,7 @@ if __name__ == "__main__":
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
-    reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
+    #reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
 
     # Choose models
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
