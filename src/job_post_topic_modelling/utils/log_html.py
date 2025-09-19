@@ -1,14 +1,15 @@
 import contextlib
 from pathlib import Path
-from plotly.graph_objs import Figure as PlotlyFigure
-from matplotlib.figure import Figure as MatplotlibFigure
+
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure as MatplotlibFigure
+from plotly.graph_objs import Figure as PlotlyFigure
 
 
 def plotly_to_matplotlib(fig):
-    '''
+    """
     Chat gpt code to make a simple matpllib figure from a plotly figure.
-    '''
+    """
     plt.figure()
     ax = plt.gca()
     for tr in fig.data:
@@ -32,6 +33,7 @@ def plotly_to_matplotlib(fig):
     ax.set_ylabel(fig.layout.yaxis.title.text if fig.layout and fig.layout.yaxis and fig.layout.yaxis.title else "")
     plt.tight_layout()
     return ax
+
 
 def log_html(live, fig_name, fig):
     """
