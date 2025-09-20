@@ -26,6 +26,11 @@ dvc exp run --queue -S "prepare.settings.nobs=2000000" -S "embed/model=sentence_
 dvc exp run --queue -S "embed/model=sentence_transformers_big" -S "embed.model.use_model2vec=True" --force-downstream
 
 
+dvc exp run --queue -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_sample=5000" -S "train.dimensionality_reduction.n_neighbors=30,60,90" -S "embed/model=sentence_transformers_big" -S "embed.model.use_model2vec=True" --force-downstream
+
+dvc exp run --queue -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_sample=5000" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_big" -S "embed.model.use_model2vec=True" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=8000000" -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_sample=5000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
 
 
 dvc exp run --queue
@@ -33,11 +38,11 @@ dvc exp run --queue
 dvc queue start -j3
 
 
-dvc queue logs wacky-tomb --follow
+dvc queue logs scald-dita --follow
 
 to export a log to a text file
 
-dvc exp queue log swacky-tomb > ../job-post-topic-modelling-local/logs/swacky-tomb.txt
+dvc queue logs scald-dita > ../job-post-topic-modelling-local/logs/scald-dita.txt
 
 dvc queue stop --kill
 
