@@ -7,7 +7,6 @@ from dvclive import Live
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.models import StaticEmbedding
-from umap import UMAP
 
 from job_post_topic_modelling.utils.data_io import load_data
 
@@ -89,15 +88,15 @@ if __name__ == "__main__":
     )
 
     # Reduce embedding dimensions
-    #reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric="cosine", unique=True).fit_transform(
+    # reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric="cosine", unique=True).fit_transform(
     #    embeddings
-    #)
+    # )
 
     # Save
     np.save(embeddings_path, embeddings)
     print(f"Saved embeddings to {embeddings_path}")
-    #np.save(reduced_embeddings_path, reduced_embeddings)
-    #print(f"Saved reduced_embeddings to {reduced_embeddings_path}")
+    # np.save(reduced_embeddings_path, reduced_embeddings)
+    # print(f"Saved reduced_embeddings to {reduced_embeddings_path}")
 
     # Wrap up
     stop = time.time()
