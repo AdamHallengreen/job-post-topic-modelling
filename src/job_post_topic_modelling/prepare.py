@@ -296,12 +296,13 @@ if __name__ == "__main__":
     texts_file = data_dir / "texts.parquet"
 
     # Load parameters
-    par = OmegaConf.load(params_path).prepare
+    full_par = OmegaConf.load(params_path)
+    par = full_par.prepare
 
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
-    print_params(par)
+    print_params(full_par)
 
     # Load
     print("Loading data...")

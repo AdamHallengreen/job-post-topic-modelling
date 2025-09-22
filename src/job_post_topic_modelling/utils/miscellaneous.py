@@ -25,4 +25,9 @@ def print_params(par: dict) -> None:
     """
     print("Parameters:")
     for key, value in par.items():
-        print(f"{key}: \n {value}")
+        print(f"{key}:")
+        if hasattr(value, "items"):
+            for subkey, subvalue in value.items():
+                print(f"-{subkey}:\n  {subvalue}")
+        else:
+            print(f" {value}")

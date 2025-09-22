@@ -105,12 +105,14 @@ if __name__ == "__main__":
     params_path = project_root / "params.yaml"
 
     # Load parameters
-    par = OmegaConf.load(params_path).train
-    embedding_model_name = OmegaConf.load(params_path).embed.model.embedding_model
+    full_par = OmegaConf.load(params_path)
+    par = full_par.train
+    embedding_model_name = full_par.embed.model.embedding_model
+
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
-    print_params(par)
+    print_params(full_par)
 
     # Load
     print("Loading data...")

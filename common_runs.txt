@@ -31,7 +31,7 @@ dvc exp run --queue -S "prepare.settings.nobs=4000000,6000000,-1" -S "train.clus
 
 dvc exp run --queue
 
-dvc queue start -j1
+dvc queue start -j3
 
 
 dvc queue logs weird-jass --follow

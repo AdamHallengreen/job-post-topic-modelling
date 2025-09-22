@@ -55,12 +55,13 @@ if __name__ == "__main__":
     reduced_embeddings_path = data_dir / "reduced_embeddings.npy"
 
     # Load parameters
-    par = OmegaConf.load(params_path).embed
+    full_par = OmegaConf.load(params_path)
+    par = full_par.embed
 
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
-    print_params(par)
+    print_params(full_par)
 
     # Load
     print("Loading data...")
