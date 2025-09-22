@@ -14,7 +14,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
 from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
-from job_post_topic_modelling.utils.miscellaneous import try_inter, print_params
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402

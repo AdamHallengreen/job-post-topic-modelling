@@ -16,13 +16,13 @@ def try_inter() -> None:
         pass
 
 
-def print_params(par : dict ) -> None:
+def print_params(par: dict) -> None:
     """
     Prints the parameters in a readable format.
 
     Args:
         par (dict): Dictionary of parameters to print.
     """
-    print('Parameters:')
+    print("Parameters:")
     for key, value in par.items():
         print(f"{key}: \n {value}")

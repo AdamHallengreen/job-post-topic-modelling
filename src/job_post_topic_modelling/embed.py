@@ -7,8 +7,9 @@ from dvclive import Live
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.models import StaticEmbedding
-from job_post_topic_modelling.utils.miscellaneous import print_params
+
 from job_post_topic_modelling.utils.data_io import load_data
+from job_post_topic_modelling.utils.miscellaneous import print_params
 
 
 def get_embedding_model_name(embedding_model_name: str):

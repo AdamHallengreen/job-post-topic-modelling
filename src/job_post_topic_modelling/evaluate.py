@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from sklearn.feature_extraction.text import CountVectorizer
 
-from job_post_topic_modelling.utils.miscellaneous import try_inter, print_params  # noqa: E402
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
