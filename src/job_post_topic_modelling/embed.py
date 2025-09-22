@@ -7,7 +7,7 @@ from dvclive import Live
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.models import StaticEmbedding
-
+from job_post_topic_modelling.utils.miscellaneous import print_params
 from job_post_topic_modelling.utils.data_io import load_data
 
 
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(par)
 
     # Load
     print("Loading data...")

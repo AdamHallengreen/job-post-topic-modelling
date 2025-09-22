@@ -14,7 +14,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
 from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.utils.miscellaneous import try_inter, print_params
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
@@ -110,6 +110,7 @@ if __name__ == "__main__":
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(par)
 
     # Load
     print("Loading data...")

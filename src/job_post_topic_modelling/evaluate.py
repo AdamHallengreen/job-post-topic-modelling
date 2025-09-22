@@ -10,7 +10,7 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from sklearn.feature_extraction.text import CountVectorizer
 
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.utils.miscellaneous import try_inter, print_params  # noqa: E402
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(par)
 
     # load
     print("Loading data...")

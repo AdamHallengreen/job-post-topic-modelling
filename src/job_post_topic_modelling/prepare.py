@@ -10,7 +10,7 @@ from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
 
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.utils.miscellaneous import try_inter, print_params
 
 try_inter()
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
@@ -301,6 +301,7 @@ if __name__ == "__main__":
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(par)
 
     # Load
     print("Loading data...")
