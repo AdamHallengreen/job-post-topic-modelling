@@ -29,7 +29,7 @@ dvc exp run --queue -S "embed/model=sentence_transformers_big" -S "embed.model.u
 dvc exp run --queue -S "prepare.settings.nobs=4000000,6000000,none" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
 
 dvc exp run --queue -S "prepare.settings.nobs=6000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_big" --force-downstream
-dvc exp run --queue -S "prepare.settings.nobs=none" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
+dvc exp run --queue -S "prepare.settings.nobs=null" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
 
 dvc exp run --queue -S "prepare.settings.nobs=10000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
 
