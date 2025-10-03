@@ -28,10 +28,20 @@ dvc exp run --queue -S "embed/model=sentence_transformers_big" -S "embed.model.u
 
 dvc exp run --queue -S "prepare.settings.nobs=4000000,6000000,none" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
 
-dvc exp run --queue -S "prepare.settings.nobs=6000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_big" --force-downstream
+dvc exp run --queue -S "prepare.settings.nobs=6000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA,UMAP" -S "embed/model=sentence_transformers_small" --force-downstream
+
 dvc exp run --queue -S "prepare.settings.nobs=null" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
 
 dvc exp run --queue -S "prepare.settings.nobs=10000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
+
+dvc exp run --queue -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "prepare.settings.nobs=2000000,4000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=2000000,4000000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_samples=5000" --force-downstream
+
+dvc exp run --queue -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "prepare.settings.nobs=6000000,none"  -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_samples=5000" --force-downstream
+
+
+# You should reorder if settings is not cached (and there are multiple other options later in the pipeline) to make sure they are not running on top of eachother
 
 dvc exp run --queue
 
