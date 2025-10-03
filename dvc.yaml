@@ -21,7 +21,6 @@ stages:
     - embed
     outs:
     - data/embeddings.npy
-    - data/reduced_embeddings.npy
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
@@ -40,7 +39,6 @@ stages:
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
-    - data/reduced_embeddings.npy
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
@@ -50,6 +48,7 @@ stages:
     - src/job_post_topic_modelling/utils/log_html.py
     outs:
     - output/topic_info.csv
+    - output/bertopic_model
 metrics:
 - output/metrics.json
 plots:

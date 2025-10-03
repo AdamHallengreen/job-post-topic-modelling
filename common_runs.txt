@@ -1,0 +1,93 @@
+# star start (set directory and environment)
+cd code/job-post-topic-modelling
+conda activate job_post_topic_modelling
+
+# common runs to do (so we don't have to keep writting them, could also write a .bat):
+
+dvc exp run --queue -S "prepare/settings=small"  -S "prepare/star=star" --force-downstream
+
+
+dvc exp run --queue -S "prepare/settings=full"  -S "prepare/star=star" -S "embed.settings.num_workers=1,5" -S "embed.settings.batch_size=256,512" --force-downstream
+
+
+
+dvc exp run --queue  -S "prepare.settings.nobs=150000" -S "embed/model=sentence_transformers_small" -S "embed.model.use_model2vec=True" --force-downstream
+
+
+dvc exp run --queue -S "prepare.settings.split_sentences=True" -S "prepare.settings.nobs=100000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
+dvc exp run --queue -S "prepare.settings.split_sentences=True" -S "prepare.settings.nobs=500000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
+dvc exp run --queue -S "prepare.settings.split_sentences=True" -S "prepare.settings.nobs=1000000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
+
+
+dvc exp run --queue -S "prepare.settings.nobs=500000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=2000000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "embed.model.use_model2vec=True,False" --force-downstream
+
+dvc exp run --queue -S "embed/model=sentence_transformers_big" -S "embed.model.use_model2vec=True" --force-downstream
+
+
+dvc exp run --queue -S "prepare.settings.nobs=4000000,6000000,none" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=6000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA,UMAP" -S "embed/model=sentence_transformers_small" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=null" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=10000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" -S "embed/model=sentence_transformers_small,sentence_transformers_big" --force-downstream
+
+dvc exp run --queue -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "prepare.settings.nobs=2000000,4000000" -S "train/clustering=KMeans" -S "train/dimensionality_reduction=PCA" --force-downstream
+
+dvc exp run --queue -S "prepare.settings.nobs=2000000,4000000" -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_samples=5000" --force-downstream
+
+dvc exp run --queue -S "embed/model=sentence_transformers_small,sentence_transformers_big" -S "prepare.settings.nobs=6000000,none"  -S "train.clustering.min_cluster_size=10000" -S "train.clustering.min_samples=5000" --force-downstream
+
+
+# You should reorder if settings is not cached (and there are multiple other options later in the pipeline) to make sure they are not running on top of eachother
+
+dvc exp run --queue
+
+dvc queue start -j3
+
+
+dvc queue logs weird-jass --follow
+
+to export a log to a text file
+
+dvc queue logs frore-cols > ../job-post-topic-modelling-local/logs/frore-cols.txt
+
+dvc queue stop --kill
+
+dvc queue status
+
+You can use the following commands in your SSH terminal to monitor memory and CPU usage:
+
+- `top`
+  Shows real-time CPU and memory usage for all processes.
+
+- `htop`
+  An enhanced version of `top` (if installed). Use arrow keys to navigate.
+
+- `free -h`
+  Displays total, used, and free memory.
+
+- `vmstat 1`
+  Shows system performance statistics, updated every second.
+
+- `ps aux --sort=-%mem | head`
+  Lists top processes by memory usage.
+
+- `ps aux --sort=-%cpu | head`
+  Lists top processes by CPU usage.
+
+You can run these commands directly in your SSH terminal.
+
+
+Press q to stop
+
+
+# Precommit:
+
+pre-commit run -a
+
+# cleaning up git, if you have made changes in main:
+make new branch with your changes:
+git checkout -b new-branch-name

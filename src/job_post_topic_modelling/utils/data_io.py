@@ -5,7 +5,7 @@ import numpy as np
 import polars as pl
 
 
-def load_data(filepath: Path, text_col: str = "text") -> list[str]:
+def load_data(filepath: Path | str, text_col: str = "text") -> list[str]:
     """
     Load the texts.parquet file and return a list of texts for BERTopic.
     Args:
@@ -22,16 +22,16 @@ def load_data(filepath: Path, text_col: str = "text") -> list[str]:
         return df[df.columns[0]].to_list()
 
 
-def load_pretrained_embeddings(filepath: Path):
+def load_pretrained_embeddings(filepath: Path | str):
     """
     Load precomputed embeddings from output/embeddings.npy if available, otherwise return the embedding model.
     """
-    if filepath.exists():
+    if Path(filepath).exists():
         embeddings = np.load(filepath)
         return embeddings
 
 
-def load_danish_stop_words(filepath: str) -> list[str]:
+def load_danish_stop_words(filepath: str | Path) -> list[str]:
     """
     Load Danish stop words from a JSON file.
     Args:

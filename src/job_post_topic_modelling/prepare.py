@@ -10,10 +10,17 @@ from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
 
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
+
+# Check if running on STATA server, if yes set up path to load nltk data
+if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling"]:
+    user = os.popen("whoami").read().strip()  # noqa: S605, S607
+    import nltk  # type: ignore  # noqa: PGH003
+
+    nltk.data.path.append(rf"/home/{user}@PROD.SITAD.DK/code/help/installations/nltk_data")
 
 
 class FileNotFoundErrorMessage:
@@ -52,8 +59,8 @@ def load_data(file_path: Path, par: DictConfig) -> pl.DataFrame:
         UnsupportedFileTypeError: If the file is not an Excel file.
     """
     # Check if using STAR data
-    if par.star.usestar > 0:
-        return load_star_data(par.star.usestar)
+    if par.star.usestar == 1:
+        return load_star_data(par)
 
     # check if the file exists
     if not file_path.exists():
@@ -66,7 +73,7 @@ def load_data(file_path: Path, par: DictConfig) -> pl.DataFrame:
     return df
 
 
-def load_star_data(usestar) -> pl.DataFrame:
+def load_star_data(par) -> pl.DataFrame:
     """
     Loads the jobpost data from star data on the server
     """
@@ -75,22 +82,24 @@ def load_star_data(usestar) -> pl.DataFrame:
 
     folder_path = Path(f"/home/{username}@PROD.SITAD.DK/code/jobads/src/dgp/textdata/output")
 
-    if usestar == 1:
-        dataname = "jobads_clean.parquet"
-        id_var = "ann_id"
-        text_var = "annonce_tekst"
-    elif usestar == 2:
+    dataname = "jobads_clean.parquet"
+    id_var = "ann_id"
+    text_var = "annonce_tekst"
+    if par.settings.split_sentences or par.settings.split_paragraphs:
+        # Load the sectioned data
         dataname = "jobads_sections_clean.parquet"
         id_var = "section_id"
         text_var = "section_text"
 
     df = (
-        pl.read_parquet(folder_path / dataname)
+        pl.scan_parquet(folder_path / dataname)
         .select(pl.col(id_var).alias("id"), pl.col(text_var).alias("text"))
         .filter(
             pl.col("text").is_not_null()  # a few obs have missing text but non-missing heading and rubrik
         )
-    )
+        .slice(0, par.settings.nobs)
+    ).collect()
+
     return df
 
 
@@ -287,11 +296,13 @@ if __name__ == "__main__":
     texts_file = data_dir / "texts.parquet"
 
     # Load parameters
-    par = OmegaConf.load(params_path).prepare
+    full_par = OmegaConf.load(params_path)
+    par = full_par.prepare
 
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(full_par)
 
     # Load
     print("Loading data...")
@@ -302,7 +313,10 @@ if __name__ == "__main__":
     print("Cleaning data...")
     texts = clean_data(texts)
     num_texts_used = len(texts)
-    print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {file_path}")
+    from_path = file_path
+    if par.star.usestar == 1:
+        from_path = Path("STAR data")
+    print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {from_path}")
 
     # Split
     if par.settings.split_sentences:

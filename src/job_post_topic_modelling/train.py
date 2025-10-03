@@ -8,13 +8,13 @@ from bertopic.dimensionality import BaseDimensionalityReduction
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
@@ -56,11 +56,6 @@ def rescale(x, inplace=False):
     x /= np.std(x[:, 0]) * 10000
 
     return x
-
-
-def get_embedding_model(embedding_model_name: str):
-    sentence_model = SentenceTransformer(embedding_model_name)
-    return sentence_model
 
 
 def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
@@ -110,12 +105,14 @@ if __name__ == "__main__":
     params_path = project_root / "params.yaml"
 
     # Load parameters
-    par = OmegaConf.load(params_path).train
-    embedding_model_name = OmegaConf.load(params_path).embed.model.embedding_model
+    full_par = OmegaConf.load(params_path)
+    par = full_par.train
+    embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(full_par)
 
     # Load
     print("Loading data...")
@@ -124,6 +121,7 @@ if __name__ == "__main__":
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
     # Choose models
+
     embedding_model = get_embedding_model(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
@@ -151,7 +149,7 @@ if __name__ == "__main__":
         calculate_probabilities=par.settings.calculate_probabilities,
         # Hyperparameters
         top_n_words=par.settings.top_n_words,
-        nr_topics="auto",
+        nr_topics=par.settings.nr_topics,
         verbose=par.settings.verbose,
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
@@ -161,7 +159,7 @@ if __name__ == "__main__":
         models_dir / "bertopic_model",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
-        save_embedding_model=embedding_model_name,
+        save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
     print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
 

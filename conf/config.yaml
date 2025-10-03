@@ -1,6 +1,6 @@
 defaults:
   - prepare/settings: full
-  - prepare/star: local
+  - prepare/star: star
   - embed/settings: default
   - embed/model: sentence_transformers_big
   - train/settings: default

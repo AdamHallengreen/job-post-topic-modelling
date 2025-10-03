@@ -10,13 +10,13 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from sklearn.feature_extraction.text import CountVectorizer
 
-from job_post_topic_modelling.utils.interactive import try_inter
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
+from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
     load_data,
-    load_pretrained_embeddings,
 )
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
@@ -113,18 +113,21 @@ if __name__ == "__main__":
     params_path = project_root / "params.yaml"
 
     # Load parameters
-    par = OmegaConf.load(params_path).evaluate
+    full_par = OmegaConf.load(params_path)
+    par = full_par.evaluate
+    embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
+    print_params(full_par)
 
     # load
     print("Loading data...")
     documents = load_data(data_dir / "texts.parquet", text_col="text")
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
-    reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
+    # reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
 
     # Choose models
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
@@ -140,6 +143,15 @@ if __name__ == "__main__":
         representation_model=representation_model,
     )
 
+    # Save model
+    print("Saving model with updated topic representation...")
+    topic_model.save(
+        output_dir / "bertopic_model_representation",
+        serialization="safetensors",
+        save_ctfidf=False,  # True, # There is some error here for TRUE
+        save_embedding_model=get_embedding_model_name(embedding_model_name),
+    )
+
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         topic_info = topic_model.get_topic_info()
@@ -147,7 +159,7 @@ if __name__ == "__main__":
         topic_info.to_csv(output_file)
         live.log_artifact(output_file, type="dataset")
 
-        live.log_metric("#topics", len(topic_info), plot=False)
+        live.log_metric("#Topics", len(topic_info), plot=False)
 
         fig = create_top_words_fig(topic_model)
         live.log_image("top_words.png", fig)

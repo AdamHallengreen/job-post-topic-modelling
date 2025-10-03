@@ -3,4 +3,5 @@ n_neighbors : 60
 n_components: 5
 min_dist: 0.0
 metric: cosine
-random_state: 42
+random_state:
+low_memory: True
