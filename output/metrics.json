@@ -2,9 +2,8 @@
     "predict.py": "0.03 hours",
     "step": 0,
     "prepare.py": "0.00 hours",
-    "#Topics": 182,
+    "#Topics": 13,
     "embed.py": "0.14 hours",
-    "train.py": "0.04 hours",
-    "#topics": 17,
+    "train.py": "0.05 hours",
     "evaluate.py": "0.02 hours"
 }

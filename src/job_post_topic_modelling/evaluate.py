@@ -13,6 +13,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
+from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
     load_data,
@@ -114,6 +115,7 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.evaluate
+    embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
@@ -140,7 +142,16 @@ if __name__ == "__main__":
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
     )
-    
+
+    # Save model
+    print('Saving model with updated topic representation...')
+    topic_model.save(
+        output_dir / "bertopic_model_representation",
+        serialization="safetensors",
+        save_ctfidf=False,  # True, # There is some error here for TRUE
+        save_embedding_model=get_embedding_model_name(embedding_model_name),
+    )
+
 
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
