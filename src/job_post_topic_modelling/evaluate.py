@@ -144,14 +144,13 @@ if __name__ == "__main__":
     )
 
     # Save model
-    print('Saving model with updated topic representation...')
+    print("Saving model with updated topic representation...")
     topic_model.save(
         output_dir / "bertopic_model_representation",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
-
 
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:

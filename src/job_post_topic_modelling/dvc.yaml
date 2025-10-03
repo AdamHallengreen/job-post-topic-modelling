@@ -1,14 +1,6 @@
 metrics:
 - ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
-- ../../output/metrics.json
 plots:
-- ../../output/plots/images
 - ../../output/plots/images
 artifacts:
   topic_info:

@@ -1,5 +1,5 @@
-import subprocess
 import ast
+import subprocess
 
 import polars as pl
 from dvc.api import open as dvc_open  # works across DVC 2/3
@@ -13,7 +13,7 @@ def _list_experiment_refs() -> list[dict[str, str]]:
     Return a list of dicts with keys: ref, label, sha.
     Uses pure Git to enumerate DVC experiment refs.
     """
-    out = subprocess.check_output(  # noqa: S603
+    out = subprocess.check_output(
         ["git", "for-each-ref", "refs/exps", "--format=%(refname:short) %(objectname)"],  # noqa: S607
         text=True,
     )
@@ -69,8 +69,8 @@ def _match_experiment(exps: list[dict[str, str]], query: str) -> dict[str, str] 
 def _load_csv_at_ref(path: str, rev: str):
     with dvc_open(path, rev=rev, mode="r") as f:
         return pl.read_csv(f).with_columns(
-                        pl.col("Representation").map_elements(ast.literal_eval, return_dtype=pl.List(pl.Utf8))
-                    )
+            pl.col("Representation").map_elements(ast.literal_eval, return_dtype=pl.List(pl.Utf8))
+        )
 
 
 def print_all_experiments_text(artifact: str = ARTIFACT):
@@ -95,8 +95,7 @@ def print_all_experiments_text(artifact: str = ARTIFACT):
         print()  # blank line after each
 
 
-def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT,return_data=True,
-                        n_words=10,n_topics=10):
+def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT, return_data=True, n_words=10, n_topics=10):
     """
     Print the csv artifact for a specific experiment identified by:
       - experiment name/label (from the ref tail),
@@ -118,7 +117,7 @@ def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT,return_data=Tru
     print("-" * 80)
     try:
         data = _load_csv_at_ref(artifact, rev=match["sha"])
-        print_top_topics(data,n_topics=5)
+        print_top_topics(data, n_topics=5)
 
     except Exception as err:
         print(f"[ERROR] Could not load {artifact}: {err}")
@@ -127,14 +126,10 @@ def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT,return_data=Tru
     if return_data:
         return data
 
-def print_top_topics(data,n_words=10,n_topics=10):
 
+def print_top_topics(data, n_words=10, n_topics=10):
     # Filter out outliers (-1), sort by count, take top 10
-    topn = (
-        data
-        .filter(pl.col("Topic") != -1)
-        .sort("Count", descending=True)
-    )
+    topn = data.filter(pl.col("Topic") != -1).sort("Count", descending=True)
     if n_topics is not None:
         topn = topn.head(n_topics)
 
@@ -145,13 +140,14 @@ def print_top_topics(data,n_words=10,n_topics=10):
         name = row["Name"]
         rep = row["Representation"]  # now a list of (word, score) pairs
         words = rep[:n_words]
-        print(f"Topic {topic_id+1} ({count} docs): {name}")
+        print(f"Topic {topic_id + 1} ({count} docs): {name}")
         print("  Top words:", ", ".join(words))
         print()
 
-def print_top_topics_from_query(query, artifact: str = ARTIFACT,n_words=10,n_topics=10):
-    print(f'Query: {query}')
-    data = load_experiment_csv(query,artifact=artifact)
+
+def print_top_topics_from_query(query, artifact: str = ARTIFACT, n_words=10, n_topics=10):
+    print(f"Query: {query}")
+    data = load_experiment_csv(query, artifact=artifact)
     print_top_topics(data)
 
 
