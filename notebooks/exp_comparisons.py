@@ -95,7 +95,8 @@ def print_all_experiments_text(artifact: str = ARTIFACT):
         print()  # blank line after each
 
 
-def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT,return_data=True):
+def load_experiment_csv(exp_query: str, artifact: str = ARTIFACT,return_data=True,
+                        n_words=10,n_topics=10):
     """
     Print the csv artifact for a specific experiment identified by:
       - experiment name/label (from the ref tail),

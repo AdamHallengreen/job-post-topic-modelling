@@ -140,6 +140,7 @@ if __name__ == "__main__":
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
     )
+    
 
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
