@@ -2,3 +2,4 @@ show_progress_bar: True
 batch_size: 512
 device: "cpu"
 num_workers: 5
+shard_size: 1_000_000

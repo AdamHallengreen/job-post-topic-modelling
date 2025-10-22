@@ -1,3 +1,4 @@
 /texts.parquet
 /embeddings.npy
 /reduced_embeddings.npy
+/embeddings
