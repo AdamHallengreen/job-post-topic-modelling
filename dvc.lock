@@ -9,12 +9,12 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: a565937eb545f0695bae7db6905186a1
-      size: 10609
+      md5: 444e112c58af47edd42d6b548f23d5f9
+      size: 11202
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: 6eee0ff02eb398221fb21b4faff63a43
-      size: 1248
+      md5: d3873137888d01080912dab7907dfd89
+      size: 1778
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -25,33 +25,34 @@ stages:
           settings:
             nobs: 100000
             split_paragraphs: true
-            split_sentences: false
+            split_sentences: true
           star:
             usestar: 1
     outs:
     - path: data/texts.parquet
       hash: md5
-      md5: 8a6557743265544fd0946c1e9b054728
-      size: 8240464
+      md5: 3587a9ecac40fb1f6424293670f6534b
+      size: 7791889
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
-    - path: data/embeddings.npy
+    - path: data/embeddings/
       hash: md5
-      md5: 67df9050908b136ffa877426144ee7eb
-      size: 256653440
+      md5: 6916de7432f6fa5fe6e5e2630d2ad14f.dir
+      size: 389560448
+      nfiles: 1
     - path: data/texts.parquet
       hash: md5
-      md5: 8a6557743265544fd0946c1e9b054728
-      size: 8240464
+      md5: 3587a9ecac40fb1f6424293670f6534b
+      size: 7791889
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: ec6f91fc568573f76ca323f027e1538b
-      size: 6525
+      md5: 0434c2947983fcd151048ebdccb51c7e
+      size: 6341
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: 6eee0ff02eb398221fb21b4faff63a43
-      size: 1248
+      md5: d3873137888d01080912dab7907dfd89
+      size: 1778
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -64,9 +65,10 @@ stages:
             batch_size: 256
             device: cpu
             num_workers: 1
+            shard_size: 1000000
           model:
             embedding_model: 
-              sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+              sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
             use_model2vec: false
             pca_dims: 384
         train:
@@ -75,6 +77,7 @@ stages:
             calculate_probabilities: false
             nr_topics:
             verbose: true
+            nobs: 1000000
           seed_topics:
             seeds:
           dimensionality_reduction:
@@ -95,16 +98,16 @@ stages:
     outs:
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 4d368c646fac706e9910da61b1412f12
-      size: 396
+      md5: 98901760805ed6215a4435ae71602e7b
+      size: 432
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 4590f3dcc0cb84314d03719ef456df2e
-      size: 52312
+      md5: e74b174654f88b11b6356891d849f66f
+      size: 53848
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 63c46c62a19f9e789914695838da5463
-      size: 1129680
+      md5: fce6ebfbb8742b00555321351ac3c5d8
+      size: 2033478
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -185,58 +188,59 @@ stages:
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
-    - path: data/reduced_embeddings.npy
-      hash: md5
-      md5: a1ce1cd60c61ece70e0a093ec1aad2e0
-      size: 1020720
     - path: models/bertopic_model/config.json
       hash: md5
-      md5: 4d368c646fac706e9910da61b1412f12
-      size: 396
+      md5: 98901760805ed6215a4435ae71602e7b
+      size: 432
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 4590f3dcc0cb84314d03719ef456df2e
-      size: 52312
+      md5: e74b174654f88b11b6356891d849f66f
+      size: 53848
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 63c46c62a19f9e789914695838da5463
-      size: 1129680
+      md5: fce6ebfbb8742b00555321351ac3c5d8
+      size: 2033478
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: f79e9d3400736cde33941951c38a5897
-      size: 6294
+      md5: 828e0019546cdaf3790fc9f6673eab50
+      size: 6826
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: 6eee0ff02eb398221fb21b4faff63a43
-      size: 1248
+      md5: d3873137888d01080912dab7907dfd89
+      size: 1778
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
       size: 3412
     - path: src/job_post_topic_modelling/utils/log_html.py
       hash: md5
-      md5: 7ed83b949012708be661325d24235c5b
-      size: 955
+      md5: 2fdd05084829ea19c522272e0306d0f1
+      size: 2846
     outs:
+    - path: output/bertopic_model_representation
+      hash: md5
+      md5: f3c2007b28b685e0a3ba8bc8484ad51e.dir
+      size: 2066114
+      nfiles: 3
     - path: output/topic_info.csv
       hash: md5
-      md5: 3b36b8e9d2d78eb9a071ccc422047ec9
-      size: 3677
+      md5: 3641b3a815e65a38e2d630b88c2425d1
+      size: 7558
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
     - path: data/texts.parquet
       hash: md5
-      md5: 8a6557743265544fd0946c1e9b054728
-      size: 8240464
+      md5: 3587a9ecac40fb1f6424293670f6534b
+      size: 7791889
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
-      md5: affd81d6ded83620e8173a9f5ea2314f
-      size: 2392
+      md5: b3a63d7db3231b59785530ad765f812c
+      size: 4490
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
-      md5: 6eee0ff02eb398221fb21b4faff63a43
-      size: 1248
+      md5: d3873137888d01080912dab7907dfd89
+      size: 1778
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -249,17 +253,15 @@ stages:
             batch_size: 256
             device: cpu
             num_workers: 1
+            shard_size: 1000000
           model:
             embedding_model: 
-              sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+              sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
             use_model2vec: false
             pca_dims: 384
     outs:
-    - path: data/embeddings.npy
+    - path: data/embeddings/
       hash: md5
-      md5: 67df9050908b136ffa877426144ee7eb
-      size: 256653440
-    - path: data/reduced_embeddings.npy
-      hash: md5
-      md5: a1ce1cd60c61ece70e0a093ec1aad2e0
-      size: 1020720
+      md5: 6916de7432f6fa5fe6e5e2630d2ad14f.dir
+      size: 389560448
+      nfiles: 1
