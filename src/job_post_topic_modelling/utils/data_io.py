@@ -40,6 +40,7 @@ def load_pretrained_embeddings(filepath: Path | str, nobs=None):
         total_obs += shard_embeddings.shape[0]
         shards_loaded += 1
         if nobs is not None and total_obs >= nobs:
+            print(f"Stopped loading at {total_obs} observations as requested. Will trim to {nobs}.")
             break
 
     embeddings = np.vstack(all_embeddings)[:nobs] if nobs is not None else np.vstack(all_embeddings)
