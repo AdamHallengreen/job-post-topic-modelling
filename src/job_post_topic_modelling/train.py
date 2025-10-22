@@ -116,12 +116,11 @@ if __name__ == "__main__":
 
     # Load
     print("Loading data...")
-    documents = load_data(data_dir / "texts.parquet", text_col="text")
-    embeddings = load_pretrained_embeddings(data_dir / "embeddings", obs_stop=par.settings.nobs)
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
+    documents = load_data(data_dir / "texts.parquet", text_col="text")[:par.settings.nobs]
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
     # Choose models
-
     embedding_model = get_embedding_model(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)

@@ -22,7 +22,7 @@ def load_data(filepath: Path | str, text_col: str = "text") -> list[str]:
         return df[df.columns[0]].to_list()
 
 
-def load_pretrained_embeddings(filepath: Path | str, obs_stop=None):
+def load_pretrained_embeddings(filepath: Path | str, nobs=None):
     """
     Load all embeddings from shards and concatenate them.
     """
@@ -39,10 +39,10 @@ def load_pretrained_embeddings(filepath: Path | str, obs_stop=None):
         all_embeddings.append(shard_embeddings)
         total_obs += shard_embeddings.shape[0]
         shards_loaded += 1
-        if obs_stop is not None and total_obs >= obs_stop:
+        if nobs is not None and total_obs >= nobs:
             break
 
-    embeddings = np.vstack(all_embeddings)
+    embeddings = np.vstack(all_embeddings)[:nobs] if nobs is not None else np.vstack(all_embeddings)
 
     print(f"Loaded {embeddings.shape[0]} embeddings from {shards_loaded} out of {shards} shards.")
 
