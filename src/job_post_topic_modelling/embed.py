@@ -102,8 +102,8 @@ if __name__ == "__main__":
         sentence_model = get_embedding_model(par.model.embedding_model)
 
     embed_in_shards(
-        documents[:20_000],sentence_model,
-        embeddings_path,shard_size=10_000,
+        documents,sentence_model,
+        embeddings_path,shard_size=par.settings.shard_size,
         show_progress_bar=par.settings.show_progress_bar,
         batch_size=par.settings.batch_size,
         device=par.settings.device,
