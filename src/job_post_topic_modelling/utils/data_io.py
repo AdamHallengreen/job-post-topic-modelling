@@ -22,7 +22,7 @@ def load_data(filepath: Path | str, text_col: str = "text") -> list[str]:
         return df[df.columns[0]].to_list()
 
 
-def load_pretrained_embeddings(filepath: Path | str,obs_stop= None):
+def load_pretrained_embeddings(filepath: Path | str, obs_stop=None):
     """
     Load all embeddings from shards and concatenate them.
     """
@@ -42,12 +42,12 @@ def load_pretrained_embeddings(filepath: Path | str,obs_stop= None):
         if obs_stop is not None and total_obs >= obs_stop:
             break
 
-
     embeddings = np.vstack(all_embeddings)
 
     print(f"Loaded {embeddings.shape[0]} embeddings from {shards_loaded} out of {shards} shards.")
 
     return embeddings
+
 
 def load_danish_stop_words(filepath: str | Path) -> list[str]:
     """

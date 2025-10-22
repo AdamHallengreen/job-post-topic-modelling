@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -10,7 +11,6 @@ from sentence_transformers.models import StaticEmbedding
 
 from job_post_topic_modelling.utils.data_io import load_data
 from job_post_topic_modelling.utils.miscellaneous import print_params
-import shutil
 
 
 def get_embedding_model_name(embedding_model_name: str):
@@ -45,8 +45,8 @@ def get_embedding_model(embedding_model_name: str):
 
     return SentenceTransformer(get_embedding_model_name(embedding_model_name))
 
-def embed_in_shards(documents, sentence_model,
-                embeddings_path,shard_size=1_000_000, **encode_kwargs):
+
+def embed_in_shards(documents, sentence_model, embeddings_path, shard_size=1_000_000, **encode_kwargs):
     """
     Embed documents in shards to avoid memory issues.
     """
@@ -107,14 +107,15 @@ if __name__ == "__main__":
         sentence_model = get_embedding_model(par.model.embedding_model)
 
     embed_in_shards(
-        documents,sentence_model,
-        embeddings_path,shard_size=par.settings.shard_size,
+        documents,
+        sentence_model,
+        embeddings_path,
+        shard_size=par.settings.shard_size,
         show_progress_bar=par.settings.show_progress_bar,
         batch_size=par.settings.batch_size,
         device=par.settings.device,
         num_workers=par.settings.num_workers,
     )
-
 
     # Wrap up
     stop = time.time()
