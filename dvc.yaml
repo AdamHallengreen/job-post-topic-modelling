@@ -20,12 +20,12 @@ stages:
     params:
     - embed
     outs:
-    - data/embeddings.npy
+    - data/embeddings/
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
     - data/texts.parquet
-    - data/embeddings.npy
+    - data/embeddings/
     - src/job_post_topic_modelling/train.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py

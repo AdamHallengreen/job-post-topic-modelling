@@ -11,6 +11,7 @@ embed:
     batch_size: 256
     device: cpu
     num_workers: 1
+    shard_size: 1_000_000
   model:
     embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
     use_model2vec: false
@@ -21,6 +22,7 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
+    nobs : null
   seed_topics:
     seeds: null
   dimensionality_reduction:

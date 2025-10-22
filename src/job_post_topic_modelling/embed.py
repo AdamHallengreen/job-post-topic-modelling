@@ -44,6 +44,25 @@ def get_embedding_model(embedding_model_name: str):
 
     return SentenceTransformer(get_embedding_model_name(embedding_model_name))
 
+def embed_in_shards(documents, sentence_model,
+                embeddings_path,shard_size=1_000_000, **encode_kwargs):
+    """
+    Embed documents in shards to avoid memory issues.
+    """
+
+    num_docs = len(documents)
+    i = 1
+    for start_idx in range(0, num_docs, shard_size):
+        print(f"Processing shard {i}...")
+        end_idx = min(start_idx + shard_size, num_docs)
+        print(f"Embedding documents {start_idx} to {end_idx}...")
+        shard_embeddings = sentence_model.encode(
+            documents[start_idx:end_idx],
+            **encode_kwargs,
+        )
+        np.save(embeddings_path / f"embeddings_shard_{i}.npy", shard_embeddings)
+        i += 1
+
 
 if __name__ == "__main__":
     # Set up paths
@@ -51,7 +70,7 @@ if __name__ == "__main__":
     data_dir = project_root / "data"
     output_dir = project_root / "output"
     params_path = project_root / "params.yaml"
-    embeddings_path = data_dir / "embeddings.npy"
+    embeddings_path = data_dir / "embeddings"
     reduced_embeddings_path = data_dir / "reduced_embeddings.npy"
 
     # Load parameters
@@ -70,7 +89,7 @@ if __name__ == "__main__":
     )
 
     # Compute embeddings
-    print("Embedding documents...")
+    print("Embedding and saving documents...")
 
     if par.model.use_model2vec:
         # Not tested for star server yet
@@ -82,24 +101,15 @@ if __name__ == "__main__":
     else:
         sentence_model = get_embedding_model(par.model.embedding_model)
 
-    embeddings = sentence_model.encode(
-        documents,
+    embed_in_shards(
+        documents[:20_000],sentence_model,
+        embeddings_path,shard_size=10_000,
         show_progress_bar=par.settings.show_progress_bar,
         batch_size=par.settings.batch_size,
         device=par.settings.device,
         num_workers=par.settings.num_workers,
     )
 
-    # Reduce embedding dimensions
-    # reduced_embeddings = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric="cosine", unique=True).fit_transform(
-    #    embeddings
-    # )
-
-    # Save
-    np.save(embeddings_path, embeddings)
-    print(f"Saved embeddings to {embeddings_path}")
-    # np.save(reduced_embeddings_path, reduced_embeddings)
-    # print(f"Saved reduced_embeddings to {reduced_embeddings_path}")
 
     # Wrap up
     stop = time.time()
