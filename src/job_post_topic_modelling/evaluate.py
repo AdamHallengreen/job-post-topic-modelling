@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # Adjust topic representation
     print("Updating topic representation...")
     topic_model.update_topics(
-        documents[:full_par.train.settings.nobs],
+        documents[: full_par.train.settings.nobs],
         vectorizer_model=vectorizer_model,
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,

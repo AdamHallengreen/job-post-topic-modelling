@@ -117,7 +117,7 @@ if __name__ == "__main__":
     # Load
     print("Loading data...")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
-    documents = load_data(data_dir / "texts.parquet", text_col="text")[:par.settings.nobs]
+    documents = load_data(data_dir / "texts.parquet", text_col="text")[: par.settings.nobs]
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
     # Choose models
