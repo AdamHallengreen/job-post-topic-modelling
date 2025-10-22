@@ -48,7 +48,7 @@ stages:
     - src/job_post_topic_modelling/utils/log_html.py
     outs:
     - output/topic_info.csv
-    - output/bertopic_model
+    - output/bertopic_model_representation
 metrics:
 - output/metrics.json
 plots:

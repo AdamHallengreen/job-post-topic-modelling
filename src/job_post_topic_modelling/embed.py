@@ -10,6 +10,7 @@ from sentence_transformers.models import StaticEmbedding
 
 from job_post_topic_modelling.utils.data_io import load_data
 from job_post_topic_modelling.utils.miscellaneous import print_params
+import shutil
 
 
 def get_embedding_model_name(embedding_model_name: str):
@@ -49,13 +50,17 @@ def embed_in_shards(documents, sentence_model,
     """
     Embed documents in shards to avoid memory issues.
     """
+    # clear folder
+    if embeddings_path.exists():
+        shutil.rmtree(embeddings_path)
+    embeddings_path.mkdir(parents=True, exist_ok=True)
 
     num_docs = len(documents)
     i = 1
     for start_idx in range(0, num_docs, shard_size):
-        print(f"Processing shard {i}...")
+        print(f"Processing shard {i}")
         end_idx = min(start_idx + shard_size, num_docs)
-        print(f"Embedding documents {start_idx} to {end_idx}...")
+        print(f"Embedding documents {start_idx} to {end_idx} out of {num_docs}...")
         shard_embeddings = sentence_model.encode(
             documents[start_idx:end_idx],
             **encode_kwargs,

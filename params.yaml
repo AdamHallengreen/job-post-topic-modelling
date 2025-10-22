@@ -2,7 +2,7 @@ prepare:
   settings:
     nobs: 100000
     split_paragraphs: true
-    split_sentences: false
+    split_sentences: true
   star:
     usestar: 1
 embed:
@@ -11,9 +11,9 @@ embed:
     batch_size: 256
     device: cpu
     num_workers: 1
-    shard_size: 1_000_000
+    shard_size: 1000000
   model:
-    embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
     use_model2vec: false
     pca_dims: 384
 train:
@@ -22,7 +22,7 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
-    nobs : null
+    nobs: 1000000
   seed_topics:
     seeds: null
   dimensionality_reduction:
