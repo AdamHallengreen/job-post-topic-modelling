@@ -1,3 +1,6 @@
+from omegaconf import DictConfig, ListConfig
+
+
 ##only use these line when running in an interactive window
 def try_inter() -> None:
     """
@@ -16,7 +19,7 @@ def try_inter() -> None:
         pass
 
 
-def print_params(par: dict) -> None:
+def print_params(par: dict | DictConfig | ListConfig) -> None:
     """
     Prints the parameters in a readable format.
 
@@ -25,7 +28,7 @@ def print_params(par: dict) -> None:
     """
     print("Parameters:")
     for key, value in par.items():
-        print(f"{key}:")
+        print(f"{key!r}:")
         if hasattr(value, "items"):
             for subkey, subvalue in value.items():
                 print(f"-{subkey}:\n  {subvalue}")
