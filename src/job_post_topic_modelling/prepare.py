@@ -85,11 +85,6 @@ def load_star_data(par) -> pl.DataFrame:
     dataname = "jobads_clean.parquet"
     id_var = "ann_id"
     text_var = "annonce_tekst"
-    if par.settings.split_sentences or par.settings.split_paragraphs:
-        # Load the sectioned data
-        dataname = "jobads_sections_clean.parquet"
-        id_var = "section_id"
-        text_var = "section_text"
 
     df = (
         pl.scan_parquet(folder_path / dataname)
@@ -211,7 +206,7 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> pl.DataFrame:
+def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> tuple[pl.DataFrame,list]:
     """
     Splits texts into sentences or paragraphs, removes those containing sensitive info,
     and returns a DataFrame with unique labels and filtered text.
@@ -237,15 +232,23 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
         )
 
     labels, filtered_texts = [], []
+    sensitive_texts = []
     label_col, text_col = df.columns[0], df.columns[1]
+    n_text = df.height
+    n_paragraphs = 0
+    n_sentences = 0
+    n_filtered = 0
 
     for label, text in zip(df[label_col], df[text_col]):
         idx = 0
         text = str(text)
         paragraphs = re.split(r"(?:\r?\n){2,}", text) if split_paragraphs else [text]
+        n_paragraphs += len(paragraphs)
         for para in paragraphs:
             sentences = sent_tokenize(para, language="danish")
+            n_sentences += len(sentences)
             filtered_sents = [re.sub(r"[\r\n]+", " ", sent).strip() for sent in sentences if not is_sensitive(sent)]
+            n_filtered += len(sentences) - len(filtered_sents)
             if split_paragraphs:
                 if filtered_sents:
                     labels.append(f"{label}_{idx:02d}")
@@ -256,8 +259,12 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
                     labels.append(f"{label}_{idx:02d}")
                     filtered_texts.append(sent_clean)
                     idx += 1
+            sensitive_texts += [sent for sent in sentences if is_sensitive(sent)]
 
-    return pl.DataFrame({"label": labels, "text": filtered_texts})
+    print(f'    - From {n_text} texts, extracted {n_paragraphs} paragraphs and {n_sentences} sentences')
+    print(f'    - Removed {n_filtered} sensitive {"paragraphs" if split_paragraphs else "sentences"}')
+
+    return pl.DataFrame({"label": labels, "text": filtered_texts}),sensitive_texts
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
@@ -298,7 +305,6 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.prepare
-
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
@@ -321,12 +327,12 @@ if __name__ == "__main__":
     # Split
     if par.settings.split_sentences:
         split_paragraphs = False  # split on sentences
-        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        texts,sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
         num_splitted_sections = len(texts)
         print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} sentences")
     elif par.settings.split_paragraphs:
         split_paragraphs = True  # split on paragraphs
-        texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        texts,sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
         num_splitted_sections = len(texts)
         print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} paragraphs")
     else:
