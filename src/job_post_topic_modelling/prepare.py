@@ -85,6 +85,11 @@ def load_star_data(par) -> pl.DataFrame:
     dataname = "jobads_clean.parquet"
     id_var = "ann_id"
     text_var = "annonce_tekst"
+    if par.settings.split_sentences or par.settings.split_paragraphs:
+        # Load the sectioned data
+        dataname = "jobads_sections_clean.parquet"
+        id_var = "section_id"
+        text_var = "section_text"
 
     df = (
         pl.scan_parquet(folder_path / dataname)
@@ -247,7 +252,7 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
     for label, text in zip(df[label_col], df[text_col]):
         idx = 0
         text = str(text)
-        paragraphs = re.split(r"(?:\r?\n){2,}", text) if split_paragraphs else [text]
+        paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
         n_paragraphs += len(paragraphs)
         for para in paragraphs:
             sentences = sent_tokenize(para, language="danish")
@@ -369,10 +374,17 @@ if __name__ == "__main__":
         print("Sample original and filtered texts:")
         for id in random.sample(text_org['id'].to_list(),50):
             print(id)
-            print(text_org.filter(pl.col('id')==id)['text'][0])
-            print("Filtered texts:")
-            for t in texts.filter(pl.col('label').str.starts_with(id))['text'].to_list():
-                print(f"   - {t}")
+            text_org_obs = text_org.filter(pl.col('id')==id)['text'][0]
+            print(text_org_obs)
+            filtered_obs = texts.filter(pl.col('label').str.starts_with(id))
+
+            if len(filtered_obs) == 0:
+                print("   - NO FILTERED TEXTS")
+            else:
+                print(f'Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts')
+                print("Filtered texts:")
+                for t in filtered_obs['text'].to_list():
+                    print(f"   - {t}")
 
             print('---------')
 
