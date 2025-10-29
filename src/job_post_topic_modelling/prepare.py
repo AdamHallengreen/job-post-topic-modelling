@@ -217,6 +217,11 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
         r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
         re.IGNORECASE,
     )
+    date_pattern = re.compile(
+        r"\b(\d{1,2}([./-])\d{1,2}\2\d{2,4}" +
+        r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
+        re.IGNORECASE,
+    )
     phone_pattern = re.compile(r"\b(\d{8}|(\d{2}\s){3}\d{2})\b")
     email_pattern = re.compile(r"\b[\w\.-]+@[\w\.-]+\.\w+\b")
     homepage_pattern = re.compile(
