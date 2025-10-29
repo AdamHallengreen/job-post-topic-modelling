@@ -261,8 +261,8 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
                     idx += 1
             sensitive_texts += [sent for sent in sentences if is_sensitive(sent)]
 
-    print(f'    - From {n_text} texts, extracted {n_paragraphs} paragraphs and {n_sentences} sentences')
-    print(f'    - Removed {n_filtered} sensitive {"paragraphs" if split_paragraphs else "sentences"}')
+    print(f'    - From {n_text:,} texts, extracted {n_paragraphs:,} paragraphs and {n_sentences:,} sentences')
+    print(f'    - Removed {n_filtered:,} sensitive {"paragraphs" if split_paragraphs else "sentences"}')
 
     return pl.DataFrame({"label": labels, "text": filtered_texts}),sensitive_texts
 
@@ -351,3 +351,23 @@ if __name__ == "__main__":
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
         # Log metrics
         live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+
+
+    if False:  # For debugging purposes
+        text_org = load_data(file_path, par)
+
+        print("Sensitive texts:")
+        import random
+        for st in random.sample(sensitive_texts,100):
+            print(f" - {st}")
+
+        print("Sample original and filtered texts:")
+        for id in random.sample(text_org['id'].to_list(),50):
+            print(id)
+            print(text_org.filter(pl.col('id')==id)['text'][0])
+            print("Filtered texts:")
+            for t in texts.filter(pl.col('label').str.starts_with(id))['text'].to_list():
+                print(f"   - {t}")
+
+            print('---------')
+
