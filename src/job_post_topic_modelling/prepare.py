@@ -5,6 +5,7 @@ from pathlib import Path
 
 # For plotting
 import polars as pl
+from polars import col as c
 from dvclive import Live
 from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
@@ -93,9 +94,9 @@ def load_star_data(par) -> pl.DataFrame:
 
     df = (
         pl.scan_parquet(folder_path / dataname)
-        .select(pl.col(id_var).alias("id"), pl.col(text_var).alias("text"))
+        .select(c(id_var).alias("id"), c(text_var).alias("text"))
         .filter(
-            pl.col("text").is_not_null()  # a few obs have missing text but non-missing heading and rubrik
+            c("text").is_not_null()  # a few obs have missing text but non-missing heading and rubrik
         )
         .slice(0, par.settings.nobs)
     ).collect()
@@ -115,9 +116,9 @@ def rename_jobcenter_obs(df: pl.DataFrame) -> pl.DataFrame:
     """
     # Add a unique suffix to each duplicate "jobcenter" id using cumcount
     df = df.with_columns(
-        pl.when(pl.col("id") == "Virksomheden har valgt at rekruttere via jobcentret")
+        pl.when(c("id") == "Virksomheden har valgt at rekruttere via jobcentret")
         .then("jobcenter_" + (pl.cum_count("id").over("id") + 1).cast(pl.String))
-        .otherwise(pl.col("id"))
+        .otherwise(c("id"))
         .alias("id")
     )
     return df
@@ -160,7 +161,7 @@ def detect_language(df: pl.DataFrame) -> pl.DataFrame:
     """
     detector = LanguageDetectorBuilder.from_all_languages().build()
     languages = []
-    texts = df.select(pl.col("text")).to_series().to_list()
+    texts = df.select(c("text")).to_series().to_list()
 
     # We could possibly speed this up by setting the languages to detect
     outputs = detector.detect_languages_in_parallel_of(texts)
@@ -192,11 +193,13 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
 
     # remove non-danish posts
     df = detect_language(df)
-    df = df.filter(pl.col("language") == "DAN")
+    n = df.height
+    df = df.filter(c("language") == "DAN")
+    print(f"    - Removed {n - df.height:,} non-danish texts")
 
     # clean text column
     df = df.with_columns(
-        pl.col("text")
+        c("text")
         # Remove HTML tags
         .str.replace_all(r"<[^>]+>", " ")
         # Remove _x0009_
@@ -252,7 +255,9 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
     for label, text in zip(df[label_col], df[text_col]):
         idx = 0
         text = str(text)
-        paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
+        #paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
+        # always split into paragraphs as it helps with sentences splitting lists. (which explitly (replace html marks with this) use • as separator)
+        paragraphs = re.split(r"(?:\r?\n){2,}|•|\*", text)
         n_paragraphs += len(paragraphs)
         for para in paragraphs:
             sentences = sent_tokenize(para, language="danish")
@@ -365,26 +370,30 @@ if __name__ == "__main__":
 
     if False:  # For debugging purposes
         text_org = load_data(file_path, par)
-
+        texts = pl.read_parquet(texts_file)
         print("Sensitive texts:")
         import random
         for st in random.sample(sensitive_texts,100):
             print(f" - {st}")
 
         print("Sample original and filtered texts:")
-        for id in random.sample(text_org['id'].to_list(),50):
+        ids = text_org.select(c.id.str.replace_all(r'_s\d+$','')).unique().sort('id')
+        for id in ids.sample(100)['id'].to_list():
             print(id)
-            text_org_obs = text_org.filter(pl.col('id')==id)['text'][0]
-            print(text_org_obs)
-            filtered_obs = texts.filter(pl.col('label').str.starts_with(id))
+            text_ids = text_org.filter(c('id').str.starts_with(id))
+            print(f'Original has {len(text_ids)} parts:')
+            print(f'Filtered has {len(texts.filter(c("label").str.starts_with(id)))} parts:')
+            for sub_id in text_ids['id'].to_list():
+                print(sub_id)
+                text_org_obs = text_org.filter(c('id')==sub_id)['text'][0]
+                print(text_org_obs)
+                filtered_obs = texts.filter(c('label').str.starts_with(sub_id+'_'))
 
-            if len(filtered_obs) == 0:
-                print("   - NO FILTERED TEXTS")
-            else:
-                print(f'Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts')
-                print("Filtered texts:")
-                for t in filtered_obs['text'].to_list():
-                    print(f"   - {t}")
-
-            print('---------')
-
+                if len(filtered_obs) == 0:
+                    print("   - NO FILTERED TEXTS")
+                else:
+                    print(f'Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts')
+                    print("Filtered texts:")
+                    for t in filtered_obs['text'].to_list():
+                        print(f"   - {t}")
+            print('-----\n')
