@@ -5,11 +5,11 @@ from pathlib import Path
 
 # For plotting
 import polars as pl
-from polars import col as c
 from dvclive import Live
 from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
+from polars import col as c
 
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
@@ -214,7 +214,7 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> tuple[pl.DataFrame,list]:
+def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> tuple[pl.DataFrame, list]:
     """
     Splits texts into sentences or paragraphs, removes those containing sensitive info,
     and returns a DataFrame with unique labels and filtered text.
@@ -226,8 +226,8 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
         re.IGNORECASE,
     )
     date_pattern = re.compile(
-        r"\b(\d{1,2}([./-])\d{1,2}\2\d{2,4}" +
-        r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
+        r"\b(\d{1,2}([./-])\d{1,2}\2\d{2,4}"
+        + r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
         re.IGNORECASE,
     )
     phone_pattern = re.compile(r"\b(\d{8}|(\d{2}\s){3}\d{2})\b")
@@ -255,7 +255,7 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
     for label, text in zip(df[label_col], df[text_col]):
         idx = 0
         text = str(text)
-        #paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
+        # paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
         # always split into paragraphs as it helps with sentences splitting lists. (which explitly (replace html marks with this) use • as separator)
         paragraphs = re.split(r"(?:\r?\n){2,}|•|\*", text)
         n_paragraphs += len(paragraphs)
@@ -276,10 +276,10 @@ def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool =
                     idx += 1
             sensitive_texts += [sent for sent in sentences if is_sensitive(sent)]
 
-    print(f'    - From {n_text:,} texts, extracted {n_paragraphs:,} paragraphs and {n_sentences:,} sentences')
-    print(f'    - Removed {n_filtered:,} sensitive {"paragraphs" if split_paragraphs else "sentences"}')
+    print(f"    - From {n_text:,} texts, extracted {n_paragraphs:,} paragraphs and {n_sentences:,} sentences")
+    print(f"    - Removed {n_filtered:,} sensitive {'paragraphs' if split_paragraphs else 'sentences'}")
 
-    return pl.DataFrame({"label": labels, "text": filtered_texts}),sensitive_texts
+    return pl.DataFrame({"label": labels, "text": filtered_texts}), sensitive_texts
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
@@ -342,12 +342,12 @@ if __name__ == "__main__":
     # Split
     if par.settings.split_sentences:
         split_paragraphs = False  # split on sentences
-        texts,sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        texts, sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
         num_splitted_sections = len(texts)
         print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} sentences")
     elif par.settings.split_paragraphs:
         split_paragraphs = True  # split on paragraphs
-        texts,sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
+        texts, sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
         num_splitted_sections = len(texts)
         print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} paragraphs")
     else:
@@ -367,33 +367,33 @@ if __name__ == "__main__":
         # Log metrics
         live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
 
-
     if False:  # For debugging purposes
         text_org = load_data(file_path, par)
         texts = pl.read_parquet(texts_file)
         print("Sensitive texts:")
         import random
-        for st in random.sample(sensitive_texts,100):
+
+        for st in random.sample(sensitive_texts, 100):
             print(f" - {st}")
 
         print("Sample original and filtered texts:")
-        ids = text_org.select(c.id.str.replace_all(r'_s\d+$','')).unique().sort('id')
-        for id in ids.sample(100)['id'].to_list():
-            print(id)
-            text_ids = text_org.filter(c('id').str.starts_with(id))
-            print(f'Original has {len(text_ids)} parts:')
-            print(f'Filtered has {len(texts.filter(c("label").str.starts_with(id)))} parts:')
-            for sub_id in text_ids['id'].to_list():
+        ids = text_org.select(c.id.str.replace_all(r"_s\d+$", "")).unique().sort("id")
+        for ann_id in ids.sample(100)["id"].to_list():
+            print(ann_id)
+            text_ids = text_org.filter(c("id").str.starts_with(ann_id))
+            print(f"Original has {len(text_ids)} parts:")
+            print(f"Filtered has {len(texts.filter(c('label').str.starts_with(ann_id)))} parts:")
+            for sub_id in text_ids["id"].to_list():
                 print(sub_id)
-                text_org_obs = text_org.filter(c('id')==sub_id)['text'][0]
+                text_org_obs = text_org.filter(c("id") == sub_id)["text"][0]
                 print(text_org_obs)
-                filtered_obs = texts.filter(c('label').str.starts_with(sub_id+'_'))
+                filtered_obs = texts.filter(c("label").str.starts_with(sub_id + "_"))
 
                 if len(filtered_obs) == 0:
                     print("   - NO FILTERED TEXTS")
                 else:
-                    print(f'Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts')
+                    print(f"Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts")
                     print("Filtered texts:")
-                    for t in filtered_obs['text'].to_list():
+                    for t in filtered_obs["text"].to_list():
                         print(f"   - {t}")
-            print('-----\n')
+            print("-----\n")
