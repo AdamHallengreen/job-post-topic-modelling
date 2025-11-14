@@ -53,6 +53,20 @@ stages:
     outs:
     - output/topic_info.csv
     - output/bertopic_model_representation
+  predict:
+    cmd: python src/job_post_topic_modelling/predict.py
+    deps:
+    - output/topic_info.csv
+    - output/bertopic_model_representation
+    - src/job_post_topic_modelling/predict.py
+    - src/job_post_topic_modelling/evaluate.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    - src/job_post_topic_modelling/utils/log_html.py
+    - src/job_post_topic_modelling/utils/miscellaneous.py
+    outs:
+    - output/predicted_topics.parquet
+
 metrics:
 - output/metrics.json
 plots:
