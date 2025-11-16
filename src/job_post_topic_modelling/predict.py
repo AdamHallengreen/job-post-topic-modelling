@@ -66,19 +66,29 @@ if __name__ == "__main__":
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
     )
-    # Predict topics on all documents
 
+    # Predict topics on all documents
     print("Predicting topics on all docs...")
     topics, probs = topic_model.transform(
-        documents,
+        documents[full_par.train.settings.nobs:10000],
     )
+
+
     # topic_dict = topic_model.get_topics()
-
-
     texts = texts.with_columns(
             pl.Series("predicted_topic", topics),
             pl.Series("topic_probability", probs),
         )
 
+    print("Saving results...")
     # Save results
     texts.write_parquet(output_dir / "predicted_topics.parquet")
+
+    # Wrap up
+    stop = time.time()
+    hours = (stop - start) / 3600
+    print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
+
+    # Log metrics using DVCLive
+    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
+        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
