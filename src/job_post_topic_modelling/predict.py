@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet")
+    texts = pl.read_parquet(data_dir / "texts.parquet").sample(full_par.train.settings.nobs+1000)
     documents = texts['text'].to_list()
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # Predict topics on all documents
     print("Predicting topics on all docs...")
     topics, probs = topic_model.transform(
-        documents[full_par.train.settings.nobs:full_par.train.settings.nobs+10000],
+        documents,
     )
 
 
