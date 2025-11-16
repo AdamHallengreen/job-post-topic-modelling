@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # Predict topics on all documents
     print("Predicting topics on all docs...")
     topics, probs = topic_model.transform(
-        documents[full_par.train.settings.nobs:10000],
+        documents[full_par.train.settings.nobs:full_par.train.settings.nobs+10000],
     )
 
 
