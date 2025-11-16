@@ -3,4 +3,4 @@ min_cluster_size: 1000
 min_samples: 500
 metric: euclidean
 cluster_selection_method: leaf
-prediction_data: False
+prediction_data: True
