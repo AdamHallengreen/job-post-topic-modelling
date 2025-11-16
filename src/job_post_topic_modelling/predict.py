@@ -1,31 +1,25 @@
 import time
 from pathlib import Path
+
 import polars as pl
-
-import matplotlib.pyplot as plt
-from bertopic import BERTopic
-from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
-from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
-from matplotlib.figure import Figure
 from omegaconf import OmegaConf
-from sklearn.feature_extraction.text import CountVectorizer
 
-from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
+from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
-from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
+
+from job_post_topic_modelling.evaluate import (  # noqa: E402
+    get_cTFIDF_model,
+    get_representation_model,
+    get_vectorizer,
+    load_model,
+)
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
 )
-
-from job_post_topic_modelling.evaluate import(
-    load_model, get_vectorizer,get_cTFIDF_model,get_representation_model
-)
-
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
-from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
-
+from job_post_topic_modelling.utils.miscellaneous import print_params  # noqa: E402
 
 if __name__ == "__main__":
     # Define file paths
@@ -47,8 +41,8 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet").sample(full_par.train.settings.nobs+1000)
-    documents = texts['text'].to_list()
+    texts = pl.read_parquet(data_dir / "texts.parquet").sample(full_par.train.settings.nobs + 1000)
+    documents = texts["text"].to_list()
     topic_model = load_model(models_dir / "bertopic_model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     # reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
@@ -73,12 +67,11 @@ if __name__ == "__main__":
         documents,
     )
 
-
     # topic_dict = topic_model.get_topics()
     texts = texts.with_columns(
-            pl.Series("predicted_topic", topics),
-            pl.Series("topic_probability", probs),
-        )
+        pl.Series("predicted_topic", topics),
+        pl.Series("topic_probability", probs),
+    )
 
     print("Saving results...")
     # Save results

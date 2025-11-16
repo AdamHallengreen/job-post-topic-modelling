@@ -2,3 +2,4 @@
 /topic_info.json
 /topic_info.csv
 /bertopic_model_representation
+/predicted_topics.parquet
