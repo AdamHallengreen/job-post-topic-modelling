@@ -39,34 +39,35 @@ stages:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
-  evaluate:
-    cmd: python src/job_post_topic_modelling/evaluate.py
+  predict:
+    cmd: python src/job_post_topic_modelling/predict.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
-    - src/job_post_topic_modelling/evaluate.py
-    - src/job_post_topic_modelling/utils/data_io.py
-    - src/job_post_topic_modelling/utils/find_project_root.py
-    - src/job_post_topic_modelling/utils/log_html.py
-    - src/job_post_topic_modelling/utils/miscellaneous.py
-    outs:
-    - output/topic_info.csv
-    - output/bertopic_model_representation
-  predict:
-    cmd: python src/job_post_topic_modelling/predict.py
-    deps:
-    - output/topic_info.csv
-    - output/bertopic_model_representation
     - src/job_post_topic_modelling/predict.py
-    - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/log_html.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
     outs:
     - output/predicted_topics.parquet
-
+    - output/predicted_topics_agg.parquet
+  evaluate:
+    cmd: python src/job_post_topic_modelling/evaluate.py
+    deps:
+    - models/bertopic_model/config.json
+    - models/bertopic_model/topic_embeddings.safetensors
+    - models/bertopic_model/topics.json
+    - output/predicted_topics_agg.parquet
+    - src/job_post_topic_modelling/evaluate.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    - src/job_post_topic_modelling/utils/log_html.py
+    - src/job_post_topic_modelling/utils/miscellaneous.py
+    outs:
+    - output/topic_info.csv
+    - output/bertopic_model_representation
 metrics:
 - output/metrics.json
 plots:

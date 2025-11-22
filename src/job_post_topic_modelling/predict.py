@@ -2,22 +2,15 @@ import time
 from pathlib import Path
 
 import polars as pl
+from bertopic import BERTopic
 from dvclive import Live
 from omegaconf import OmegaConf
+from polars import col as c
 
 from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
 
-from job_post_topic_modelling.evaluate import (  # noqa: E402
-    get_cTFIDF_model,
-    get_representation_model,
-    get_vectorizer,
-    load_model,
-)
-from job_post_topic_modelling.utils.data_io import (  # noqa: E402
-    load_danish_stop_words,
-)
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.miscellaneous import print_params  # noqa: E402
 
@@ -43,23 +36,7 @@ if __name__ == "__main__":
     print("Loading data...")
     texts = pl.read_parquet(data_dir / "texts.parquet").sample(full_par.train.settings.nobs + 1000)
     documents = texts["text"].to_list()
-    topic_model = load_model(models_dir / "bertopic_model")
-    stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
-    # reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
-
-    # Choose models
-    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
-    ctfidf_model = get_cTFIDF_model(par)
-    representation_model = get_representation_model(par)
-
-    # Adjust topic representation
-    print("Updating topic representation...")
-    topic_model.update_topics(
-        documents[: full_par.train.settings.nobs],
-        vectorizer_model=vectorizer_model,
-        ctfidf_model=ctfidf_model,
-        representation_model=representation_model,
-    )
+    topic_model = BERTopic.load(models_dir / "bertopic_model")
 
     # Predict topics on all documents
     print("Predicting topics on all docs...")
@@ -71,11 +48,35 @@ if __name__ == "__main__":
     texts = texts.with_columns(
         pl.Series("predicted_topic", topics),
         pl.Series("topic_probability", probs),
+        ann_id = c.label.str.extract(r"^(\d+)_s", 1)
     )
 
     print("Saving results...")
     # Save results
     texts.write_parquet(output_dir / "predicted_topics.parquet")
+
+
+    print('aggregate to ann_id/job add level')
+    topics_agg = (topics.group_by('ann_id','predicted_topic')
+                    .agg(
+                        (pl.lit(1) - (pl.lit(1) - c('topic_probability')).product() ).alias('topic_probability'),
+                    )
+                )
+    print('make into wide format')
+    topics_wide = (topics_agg.sort('predicted_topic').pivot(
+                values='topic_probability',
+                index='ann_id',
+                on='predicted_topic',
+                aggregate_function=None,
+            )
+            ).fill_null(0.0).select(
+                'ann_id',
+                pl.all().exclude('ann_id').name.prefix('topic_')
+            )
+
+    print("Saving aggregated results...")
+    topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")
+
 
     # Wrap up
     stop = time.time()

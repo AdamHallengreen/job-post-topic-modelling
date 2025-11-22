@@ -1,14 +1,22 @@
+import os
 import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import polars as pl
+import polars.selectors as cs 
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.linear_model import LassoCV
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
@@ -103,6 +111,112 @@ def get_representation_model(par: OmegaConf):
         raise UnknownModelError(par.representation.model)
     return representation_model
 
+def load_click_shares()->pl.DataFrame:
+    # get username
+    username = os.popen("whoami").read().strip()  # noqa: S607 S605
+
+    folder_path = Path(f"/home/{username}@PROD.SITAD.DK/code/jobads/src/dgp/prep_clicks_for_dvc/output")
+
+    click_shares = pl.read_parquet(folder_path / "ads_clicks_agg.parquet")
+    return click_shares
+
+
+def linear_lasso_cv_oos(df, outcome,
+                        predictors, test_size=0.2,
+                        n_folds=5,
+                        binary_cut=None,
+                        use_sample_weight=False,
+                        weight_var="click_count",
+                        standardize=True,
+                        random_state=123521,
+                        ):
+    """
+    df: Pandas or Polars DataFrame
+    outcome: continuous outcome column
+    predictors: list of predictor names
+    Performs K-fold CV on the training data to choose alpha.
+    """
+
+    # Extract data
+    if hasattr(df, "select"):    # Polars
+        X = df.select(predictors).to_numpy()
+        y = df[outcome].to_numpy()
+        if use_sample_weight:
+            w = df[weight_var].to_numpy()
+    else:                        # Pandas
+        X = df[predictors].to_numpy()
+        y = df[outcome].to_numpy()
+
+        if use_sample_weight:
+            w = df[weight_var].to_numpy()
+
+    if binary_cut is not None:
+        X = (binary_cut <= X).astype(int)
+
+    X = csr_matrix(X)
+
+    if standardize:
+        scaler = StandardScaler(with_mean=False)
+        X = scaler.fit_transform(X)
+
+    # Train/test split
+    if use_sample_weight:
+        X_train, X_test, y_train, y_test, w_train, w_test = train_test_split(
+            X, y, w, test_size=test_size, random_state=random_state
+        )
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state
+        )
+        w_train = None
+        w_test = None
+
+    # Cross-validated Lasso
+    model = LassoCV(
+        cv=n_folds,
+        max_iter=5000,
+        n_jobs=-1,
+        random_state=random_state,
+    )
+    model.fit(X_train, y_train, 
+        sample_weight=w_train)
+
+    # Extract coefficients
+    coef = model.coef_
+    selected = [v for v, coefi in zip(predictors, coef) if coefi != 0]
+
+    # Predict OOS
+    y_hat = model.predict(X_test)
+
+    # OOS metrics
+    if use_sample_weight:
+        mse = mean_squared_error(y_test, y_hat, sample_weight=w_test)
+        mae = mean_absolute_error(y_test, y_hat, sample_weight=w_test)
+        # sklearn's r2_score *does* support sample_weight
+        r2  = r2_score(y_test, y_hat, sample_weight=w_test)
+    else:
+        mse = mean_squared_error(y_test, y_hat)
+        mae = mean_absolute_error(y_test, y_hat)
+        r2  = r2_score(y_test, y_hat)
+
+    return {
+        "model": model,
+        "chosen_alpha": model.alpha_,
+        "n_selected": len(selected),
+        'n_possible': len(predictors),
+        "coefficients": dict(zip(predictors, coef)),
+        "selected_predictors": selected,
+        "y_test": y_test,
+        "y_hat": y_hat,
+        "oos_mse": mse,
+        "oos_r2": r2,
+        "oos_mae": mae,
+        "n_obs": len(y)
+    }
+
+
+
+
 
 if __name__ == "__main__":
     # Define file paths
@@ -111,7 +225,7 @@ if __name__ == "__main__":
     models_dir = project_root / "models"
     output_dir = project_root / "output"
     params_path = project_root / "params.yaml"
-
+    seed = 1230532
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.evaluate
@@ -151,6 +265,46 @@ if __name__ == "__main__":
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
+
+    # If running on star data calculate out-of-sample prediction of click-shares
+    if full_par.prepare.star.usestar == 1:
+        click_shares  = load_click_shares()
+        topics = pl.read_parquet(output_dir / "predicted_topics_agg.parquet").filter(
+            pl.col('apply_count').is_not_null()
+        )
+        df_merged = topics.join(click_shares, on="ann_id", how="inner").with_columns(
+            *[pl.col(f'apply_share{suf}').log().alias(f'l_apply_share{suf}') 
+          for suf in ['', '_male','_fem']]
+        )
+        predictors = topics.select(cs.starts_with("topic_")).columns
+
+        results_share_cv_log = linear_lasso_cv_oos(
+            df=df_merged.filter(pl.col('apply_share')>0.0),
+            outcome="l_apply_share",
+            predictors=predictors,
+            random_state=seed
+        )
+
+        results_share_cv_log_male = linear_lasso_cv_oos(
+            df=df_merged.filter(pl.col('apply_share_male')>0.0),
+            outcome="l_apply_share_male",
+            predictors=predictors,
+            random_state=seed
+        )
+
+        results_share_cv_log_fem = linear_lasso_cv_oos(
+            df=df_merged.filter(pl.col('apply_share_fem')>0.0),
+            outcome="l_apply_share_fem",
+            predictors=predictors,
+            random_state=seed
+        )
+        with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
+            live.log_metric("click_share_cv_log_r2", results_share_cv_log['oos_r2'], plot=False)
+            live.log_metric("click_share_cv_log_n_selected", results_share_cv_log['n_selected'], plot=False)
+            live.log_metric("click_share_male_cv_log_r2", results_share_cv_log_male['oos_r2'], plot=False)
+            live.log_metric("click_share_male_cv_log_n_selected", results_share_cv_log_male['n_selected'], plot=False)
+            live.log_metric("click_share_fem_cv_log_r2", results_share_cv_log_fem['oos_r2'], plot=False)
+            live.log_metric("click_share_fem_cv_log_n_selected", results_share_cv_log_fem['n_selected'], plot=False)
 
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
