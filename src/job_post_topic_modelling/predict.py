@@ -11,6 +11,9 @@ from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
 
+from job_post_topic_modelling.utils.data_io import (  # noqa: E402
+    load_pretrained_embeddings,
+)
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.miscellaneous import print_params  # noqa: E402
 
@@ -34,49 +37,48 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet").sample(full_par.train.settings.nobs + 1000)
+    texts = pl.read_parquet(data_dir / "texts.parquet")
     documents = texts["text"].to_list()
     topic_model = BERTopic.load(models_dir / "bertopic_model")
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=None)
 
     # Predict topics on all documents
     print("Predicting topics on all docs...")
     topics, probs = topic_model.transform(
-        documents,
+        documents,embeddings = embeddings
     )
 
     # topic_dict = topic_model.get_topics()
     texts = texts.with_columns(
         pl.Series("predicted_topic", topics),
         pl.Series("topic_probability", probs),
-        ann_id = c.label.str.extract(r"^(\d+)_s", 1)
+        ann_id=c.label.str.extract(r"^(\d+)_s", 1),
     )
 
     print("Saving results...")
     # Save results
     texts.write_parquet(output_dir / "predicted_topics.parquet")
 
-
-    print('aggregate to ann_id/job add level')
-    topics_agg = (topics.group_by('ann_id','predicted_topic')
-                    .agg(
-                        (pl.lit(1) - (pl.lit(1) - c('topic_probability')).product() ).alias('topic_probability'),
-                    )
-                )
-    print('make into wide format')
-    topics_wide = (topics_agg.sort('predicted_topic').pivot(
-                values='topic_probability',
-                index='ann_id',
-                on='predicted_topic',
+    print("aggregate to ann_id/job add level")
+    topics_agg = texts.group_by("ann_id", "predicted_topic").agg(
+        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
+    )
+    print("make into wide format")
+    topics_wide = (
+        (
+            topics_agg.sort("predicted_topic").pivot(
+                values="topic_probability",
+                index="ann_id",
+                on="predicted_topic",
                 aggregate_function=None,
             )
-            ).fill_null(0.0).select(
-                'ann_id',
-                pl.all().exclude('ann_id').name.prefix('topic_')
-            )
+        )
+        .fill_null(0.0)
+        .select("ann_id", pl.all().exclude("ann_id").name.prefix("topic_"))
+    )
 
     print("Saving aggregated results...")
     topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")
-
 
     # Wrap up
     stop = time.time()

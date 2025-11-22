@@ -3,3 +3,4 @@
 /topic_info.csv
 /bertopic_model_representation
 /predicted_topics.parquet
+/predicted_topics_agg.parquet
