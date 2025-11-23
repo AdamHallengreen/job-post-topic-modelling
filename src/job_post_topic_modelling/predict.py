@@ -49,11 +49,12 @@ if __name__ == "__main__":
     )
 
     # topic_dict = topic_model.get_topics()
-    texts = texts.with_columns(
+    texts = texts.with_row_index("row_nr").with_columns(
         pl.Series("predicted_topic", topics),
         pl.Series("topic_probability", probs),
         ann_id=c.label.str.extract(r"^(\d+)_s", 1),
-    )
+        training_data = (pl.col("row_nr") < full_par.train.settings.nobs)
+    ).drop("row_nr")
 
     print("Saving results...")
     # Save results
