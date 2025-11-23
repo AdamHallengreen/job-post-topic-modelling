@@ -4,13 +4,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
-import pandas as pd
 import polars.selectors as cs
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
 from dvclive import Live
-from html2image import Html2Image
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
@@ -217,11 +215,13 @@ def linear_lasso_cv_oos(
         "n_obs": len(y),
     }
 
-def R2_dicts_to_fig(dict_list,
-                   row_names=None,
-                   columns=None,
-                   float_format="%.4f",
-                   ):
+
+def R2_dicts_to_fig(
+    dict_list,
+    row_names=None,
+    columns=None,
+    float_format="%.4f",
+):
     """
     Convert list of dicts into matplotlib fig that can be logged
 
@@ -239,7 +239,7 @@ def R2_dicts_to_fig(dict_list,
         Format for floating-point values, e.g. "%.4f"
     """
     if row_names is None:
-        row_names = [f"Model {i+1}" for i in range(len(dict_list))]
+        row_names = [f"Model {i + 1}" for i in range(len(dict_list))]
     if columns is None:
         raise ValueError("columns must be provided")  # noqa: TRY003
 
@@ -251,7 +251,6 @@ def R2_dicts_to_fig(dict_list,
             value_str = float_format % value if isinstance(value, float) else str(value)
             output_text += f"#   {label}: {value_str}\n"
         output_text += "\n"
-
 
     fig = plt.figure(figsize=(8, 10))
     plt.text(0.01, 0.99, output_text, fontsize=14, family="monospace", va="top", ha="left", wrap=True)
@@ -326,7 +325,7 @@ if __name__ == "__main__":
             random_state=seed,
         )
         results_share_cv_log_train = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share") > 0.0).filter(pl.col('training_data')==1),
+            df=df_merged.filter(pl.col("apply_share") > 0.0).filter(pl.col("training_data") == 1),
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
@@ -346,30 +345,29 @@ if __name__ == "__main__":
         )
         print("Log Click Share OOS R2:")
         columns = {
-                "n_possible": r"\# Possible",
-                "n_selected": r"\# Selected",
-                'oos_r2':'Out-of-sample R²',
-                'n_obs':r'\# Obs'
-            }
+            "n_possible": r"\# Possible",
+            "n_selected": r"\# Selected",
+            "oos_r2": "Out-of-sample R²",
+            "n_obs": r"\# Obs",
+        }
 
         output_fig = R2_dicts_to_fig(
-            [results_share_cv_log, results_share_cv_log_train, results_share_cv_log_male,results_share_cv_log_fem ],
-            row_names=["All","Topic training","Men","Women"],
+            [results_share_cv_log, results_share_cv_log_train, results_share_cv_log_male, results_share_cv_log_fem],
+            row_names=["All", "Topic training", "Men", "Women"],
             columns=columns,
             float_format="%.4f",
         )
 
         with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-            live.log_metric("click_share_cv_log_r2", f'{results_share_cv_log["oos_r2"]:.4f}', plot=False)
+            live.log_metric("click_share_cv_log_r2", f"{results_share_cv_log['oos_r2']:.4f}", plot=False)
             live.log_metric("click_share_cv_log_n_selected", results_share_cv_log["n_selected"], plot=False)
-            live.log_metric("click_share_male_cv_log_r2", f'{results_share_cv_log_male["oos_r2"]:.4f}', plot=False)
+            live.log_metric("click_share_male_cv_log_r2", f"{results_share_cv_log_male['oos_r2']:.4f}", plot=False)
             live.log_metric("click_share_male_cv_log_n_selected", results_share_cv_log_male["n_selected"], plot=False)
-            live.log_metric("click_share_fem_cv_log_r2", f'{results_share_cv_log_fem["oos_r2"]:.4f}', plot=False)
+            live.log_metric("click_share_fem_cv_log_r2", f"{results_share_cv_log_fem['oos_r2']:.4f}", plot=False)
             live.log_metric("click_share_fem_cv_log_n_selected", results_share_cv_log_fem["n_selected"], plot=False)
 
-            print('Saving table')
+            print("Saving table")
             live.log_image("click_share_R2.png", output_fig)
-
 
     print("Creating metrics and visualizations...")
     with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
