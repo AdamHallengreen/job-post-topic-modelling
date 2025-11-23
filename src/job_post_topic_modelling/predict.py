@@ -63,7 +63,7 @@ if __name__ == "__main__":
     texts.write_parquet(output_dir / "predicted_topics.parquet")
 
     print("aggregate to ann_id/job add level")
-    topics_agg = texts.group_by("ann_id", "predicted_topic").agg(
+    topics_agg = texts.group_by("ann_id", "predicted_topic","training_data").agg(
         (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
     )
     print("make into wide format")
@@ -71,13 +71,13 @@ if __name__ == "__main__":
         (
             topics_agg.sort("predicted_topic").pivot(
                 values="topic_probability",
-                index="ann_id",
+                index=["ann_id","training_data"],
                 on="predicted_topic",
                 aggregate_function=None,
             )
         )
         .fill_null(0.0)
-        .select("ann_id", pl.all().exclude("ann_id").name.prefix("topic_"))
+        .select("ann_id","training_data", pl.all().exclude("ann_id","training_data").name.prefix("topic_"))
     )
 
     print("Saving aggregated results...")
