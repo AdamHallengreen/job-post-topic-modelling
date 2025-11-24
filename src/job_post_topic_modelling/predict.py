@@ -40,7 +40,7 @@ if __name__ == "__main__":
     texts = pl.read_parquet(data_dir / "texts.parquet")
     documents = texts["text"].to_list()
     topic_model = BERTopic.load(models_dir / "bertopic_model")
-    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=None)
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings")
 
     # Predict topics on all documents
     print("Predicting topics on all docs...")
@@ -63,21 +63,22 @@ if __name__ == "__main__":
     texts.write_parquet(output_dir / "predicted_topics.parquet")
 
     print("aggregate to ann_id/job add level")
-    topics_agg = texts.group_by("ann_id", "predicted_topic", "training_data").agg(
+    topics_agg = texts.group_by("ann_id", "predicted_topic",).agg(
         (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
+        pl.col("training_data").max() # during loading of embeddings, half of one add might have been used for training
     )
     print("make into wide format")
     topics_wide = (
         (
             topics_agg.sort("predicted_topic").pivot(
-                values="topic_probability",
-                index=["ann_id", "training_data"],
+                values=["topic_probability",'topic_dummy'],
+                index=["ann_id","training_data"],
                 on="predicted_topic",
                 aggregate_function=None,
             )
         )
         .fill_null(0.0)
-        .select("ann_id", "training_data", pl.all().exclude("ann_id", "training_data").name.prefix("topic_"))
+        .select("ann_id","training_data", pl.all().exclude("ann_id","training_data").name.prefix("topic_"))
     )
 
     print("Saving aggregated results...")
