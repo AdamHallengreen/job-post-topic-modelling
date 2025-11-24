@@ -64,9 +64,9 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
-        pca_embeddings = rescale(PCA(n_components=5).fit_transform(embeddings))
+        #pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
         # Start UMAP from PCA embeddings
-        dimensionality_reduction_model = UMAP(init=pca_embeddings, **args)
+        dimensionality_reduction_model = UMAP(init='pca', **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
