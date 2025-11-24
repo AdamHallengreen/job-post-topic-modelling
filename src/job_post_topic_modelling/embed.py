@@ -64,7 +64,7 @@ def embed_in_shards(documents, sentence_model, embeddings_path, shard_size=1_000
         shard_embeddings = sentence_model.encode(
             documents[start_idx:end_idx],
             **encode_kwargs,
-        )
+        ).astype(np.float16, copy=False)
         np.save(embeddings_path / f"embeddings_shard_{i}.npy", shard_embeddings)
         i += 1
 
