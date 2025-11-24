@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import polars as pl
+from polars import col as c
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from dvclive import Live
@@ -62,7 +64,7 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
-        pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
+        pca_embeddings = rescale(PCA(n_components=5).fit_transform(embeddings))
         # Start UMAP from PCA embeddings
         dimensionality_reduction_model = UMAP(init=pca_embeddings, **args)
     elif par.dimensionality_reduction.model == "PCA":
@@ -161,6 +163,55 @@ if __name__ == "__main__":
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
     print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
+
+
+
+    print("Predict on remaining data...")
+    print("Loading full data...")
+    # if par.settings.nobs is not None:
+    texts = pl.read_parquet(data_dir / "texts.parquet")
+    documents = texts["text"].to_list()
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=None)
+    # Predict topics on all documents
+    print("Predicting topics on all docs...")
+    topics, probs = topic_model.transform(documents, embeddings=embeddings)
+
+    texts = (
+            texts.with_row_index("row_nr")
+            .with_columns(
+                pl.Series("predicted_topic", topics),
+                pl.Series("topic_probability", probs),
+                ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+                training_data=(pl.col("row_nr") < full_par.train.settings.nobs),
+            )
+            .drop("row_nr")
+        )
+    print("Saving predictions at sentence level...")
+    # Save results
+    texts.write_parquet(output_dir / "predicted_topics.parquet")
+
+    print("aggregate to ann_id/job add level")
+    topics_agg = texts.group_by("ann_id", "predicted_topic",).agg(
+        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
+        pl.col("training_data").max() # during loading of embeddings, half of one add might have been used for training
+    )
+    print("make into wide format")
+    topics_wide = (
+        (
+            topics_agg.sort("predicted_topic").pivot(
+                values=["topic_probability",'topic_dummy'],
+                index=["ann_id","training_data"],
+                on="predicted_topic",
+                aggregate_function=None,
+            )
+        )
+        .fill_null(0.0)
+        .select("ann_id","training_data", pl.all().exclude("ann_id","training_data").name.prefix("topic_"))
+    )
+
+    print("Saving aggregated results...")
+    topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")
+
 
     # Wrap up
     stop = time.time()
