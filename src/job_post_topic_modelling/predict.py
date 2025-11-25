@@ -73,12 +73,15 @@ if __name__ == "__main__":
         representation_model=representation_model,
     )
 
-    # Avoid clustering when doing predictions on new data
+
     if par.settings.clustering:
+        print("Using clustering model for predictions...")
         pass
     else:
+        print('Predicting using cosine similarity (no clustering model)...')
         topic_model.hdbscan_model = BaseCluster()
-    if par.settings.batch_mode:
+
+    if (par.settings.batch_mode) and (par_train.settings.nobs is not None):
         shard_size = par_train.settings.nobs
         print("Predicting topics in batches...")
     else:
@@ -87,9 +90,10 @@ if __name__ == "__main__":
 
     topics = np.array([], dtype=int)
     probs = np.array([], dtype=float)
+    stop = par.settings.nobs if par.settings.nobs is not None else len(documents)
 
-    for start_idx in range(0, par.settings.nobs, shard_size):
-        end_idx = min(start_idx + shard_size, par.settings.nobs)
+    for start_idx in range(0, stop, shard_size):
+        end_idx = min(start_idx + shard_size, stop)
         print(f"Processing documents {start_idx} to {end_idx}...")
         batch_docs = documents[start_idx:end_idx]
         batch_embeddings = embeddings[start_idx:end_idx]
