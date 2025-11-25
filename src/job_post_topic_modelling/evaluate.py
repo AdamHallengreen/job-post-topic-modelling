@@ -281,7 +281,7 @@ if __name__ == "__main__":
     # load
     print("Loading data...")
     texts = pl.read_parquet(data_dir / "texts.parquet")
-    if par.settings.nobs is not None:
+    if par_train.settings.nobs is not None:
         texts = texts.head(par_train.settings.nobs)
     documents = texts["text"].to_list()
 
