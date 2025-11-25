@@ -73,12 +73,11 @@ if __name__ == "__main__":
         representation_model=representation_model,
     )
 
-
     if par.settings.clustering:
         print("Using clustering model for predictions...")
         pass
     else:
-        print('Predicting using cosine similarity (no clustering model)...')
+        print("Predicting using cosine similarity (no clustering model)...")
         topic_model.hdbscan_model = BaseCluster()
 
     if (par.settings.batch_mode) and (par_train.settings.nobs is not None):
