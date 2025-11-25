@@ -1,5 +1,5 @@
 show_progress_bar: True
-batch_size: 256
-device: "cpu"
+batch_size: 64
+device: null # use null for auto-detect
 num_workers: 1
 shard_size: 1_000_000
