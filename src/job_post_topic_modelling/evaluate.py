@@ -22,9 +22,9 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
+from job_post_topic_modelling.train import load_model_objects, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
-    load_data,
 )
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
@@ -81,17 +81,6 @@ def create_top_words_fig(model) -> Figure:
     return fig
 
 
-def get_vectorizer(par: OmegaConf, stop_words=None):
-    args = {k: v for k, v in par.vectorizer.items() if k != "model"}
-    if "ngram_range" in args:
-        args["ngram_range"] = tuple(args["ngram_range"])
-    if par.vectorizer.model == "CountVectorizer":
-        vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
-    else:
-        raise UnknownModelError(par.vectorizer.model)
-    return vectorizer_model
-
-
 def get_cTFIDF_model(par: OmegaConf):
     args = {k: v for k, v in par.c_TF_IDF.items() if k != "model"}
     if par.c_TF_IDF.model == "c_TF_IDF":
@@ -110,6 +99,17 @@ def get_representation_model(par: OmegaConf):
     else:
         raise UnknownModelError(par.representation.model)
     return representation_model
+
+
+def get_vectorizer(par: OmegaConf, stop_words=None):
+    args = {k: v for k, v in par.vectorizer.items() if k != "model"}
+    if "ngram_range" in args:
+        args["ngram_range"] = tuple(args["ngram_range"])
+    if par.vectorizer.model == "CountVectorizer":
+        vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
+    else:
+        raise UnknownModelError(par.vectorizer.model)
+    return vectorizer_model
 
 
 def load_click_shares() -> pl.DataFrame:
@@ -270,6 +270,7 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.evaluate
+    par_train = full_par.train
     embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
@@ -279,20 +280,27 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    documents = load_data(data_dir / "texts.parquet", text_col="text")
-    topic_model = load_model(models_dir / "bertopic_model")
-    stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
-    # reduced_embeddings = load_pretrained_embeddings(data_dir / "reduced_embeddings.npy")
+    texts = pl.read_parquet(data_dir / "texts.parquet").head(par_train.settings.nobs)
+    documents = texts["text"].to_list()
 
-    # Choose models
-    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
+    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par_train.settings.nobs)
+
+    print("Loading model")
+    stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
+    embedding_model_name = full_par.embed.model.embedding_model
+    embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
+        par_train, embedding_model_name, embeddings, stop_words
+    )
+
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
+    vectorizer_model = get_vectorizer(par, stop_words=stop_words)
 
-    # Adjust topic representation
+    topic_model = BERTopic.load(models_dir / "bertopic_model.pkl", embedding_model=embedding_model)
+
     print("Updating topic representation...")
     topic_model.update_topics(
-        documents[: full_par.train.settings.nobs],
+        documents[: par_train.settings.nobs],
         vectorizer_model=vectorizer_model,
         ctfidf_model=ctfidf_model,
         representation_model=representation_model,
@@ -343,6 +351,22 @@ if __name__ == "__main__":
             predictors=predictors,
             random_state=seed,
         )
+
+        print("Calculating for training topics")
+        topics_train = pl.read_parquet(output_dir / "predicted_topics_agg_train.parquet")
+
+        df_merged_train = topics_train.join(click_shares, on="ann_id", how="inner").with_columns(*[
+            pl.col(f"apply_share{suf}").log().alias(f"l_apply_share{suf}") for suf in ["", "_male", "_fem"]
+        ])
+        predictors = topics_train.select(cs.starts_with("topic_")).columns
+
+        results_share_cv_log_train_topics = linear_lasso_cv_oos(
+            df=df_merged_train.filter(pl.col("apply_share") > 0.0),
+            outcome="l_apply_share",
+            predictors=predictors,
+            random_state=seed,
+        )
+
         print("Log Click Share OOS R2:")
         columns = {
             "n_possible": r"\# Possible",
@@ -352,8 +376,14 @@ if __name__ == "__main__":
         }
 
         output_fig = R2_dicts_to_fig(
-            [results_share_cv_log, results_share_cv_log_train, results_share_cv_log_male, results_share_cv_log_fem],
-            row_names=["All", "Topic training", "Men", "Women"],
+            [
+                results_share_cv_log,
+                results_share_cv_log_train,
+                results_share_cv_log_train_topics,
+                results_share_cv_log_male,
+                results_share_cv_log_fem,
+            ],
+            row_names=["All", "Topic training", "Topic training topics", "Men", "Women"],
             columns=columns,
             float_format="%.4f",
         )

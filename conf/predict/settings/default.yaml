@@ -1,0 +1,3 @@
+nobs: null # Total number of observations to predict on, set to null to use all observations 
+clustering: True # Whether to use clustering during prediction
+batch_mode: False # Whether to process data in batches (batch size will be equal to training size)

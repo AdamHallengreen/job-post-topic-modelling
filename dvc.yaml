@@ -36,23 +36,40 @@ stages:
     - embed
     - train
     outs:
-    - models/bertopic_model/config.json
-    - models/bertopic_model/topic_embeddings.safetensors
-    - models/bertopic_model/topics.json
+    - models/bertopic_model.pkl
+    - output/predicted_topics_train.parquet
+    - output/predicted_topics_agg_train.parquet
+  predict:
+    cmd: python src/job_post_topic_modelling/predict.py
+    deps:
+    - models/bertopic_model.pkl
+    - src/job_post_topic_modelling/predict.py
+    - src/job_post_topic_modelling/train.py
+    - src/job_post_topic_modelling/evaluate.py
+    - src/job_post_topic_modelling/utils/data_io.py
+    - src/job_post_topic_modelling/utils/find_project_root.py
+    - src/job_post_topic_modelling/utils/log_html.py
+    - src/job_post_topic_modelling/utils/miscellaneous.py
+    params:
+    - train
+    - predict
+    - evaluate
+    outs:
     - output/predicted_topics.parquet
     - output/predicted_topics_agg.parquet
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
-    - models/bertopic_model/config.json
-    - models/bertopic_model/topic_embeddings.safetensors
-    - models/bertopic_model/topics.json
+    - models/bertopic_model.pkl
+    - output/predicted_topics_agg_train.parquet
     - output/predicted_topics_agg.parquet
     - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/log_html.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
+    params:
+    - evaluate
     outs:
     - output/topic_info.csv
     - output/bertopic_model_representation

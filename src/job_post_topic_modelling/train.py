@@ -4,13 +4,12 @@ from typing import Any
 
 import numpy as np
 import polars as pl
-from polars import col as c
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
-from bertopic.cluster import BaseCluster
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
+from polars import col as c
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
@@ -22,7 +21,6 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
-    load_data,
     load_pretrained_embeddings,
 )
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
@@ -65,9 +63,9 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
-        #pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
+        # pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
         # Start UMAP from PCA embeddings
-        dimensionality_reduction_model = UMAP(init='pca', **args)
+        dimensionality_reduction_model = UMAP(init="pca", **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -88,15 +86,47 @@ def get_clustering_model(par: OmegaConf):
     return clustering_model
 
 
-def get_vectorizer(par: OmegaConf, stop_words=None):
-    args = {k: v for k, v in par.vectorizer.items() if k != "model"}
-    if "ngram_range" in args:
-        args["ngram_range"] = tuple(args["ngram_range"])
-    if par.vectorizer.model == "CountVectorizer":
-        vectorizer_model = CountVectorizer(stop_words=stop_words, **args)
+def load_model_objects(par, embedding_model_name, embeddings, stop_words):
+    embedding_model = get_embedding_model(embedding_model_name)
+    dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
+    clustering_model = get_clustering_model(par)
+
+    # Handle seed topic input
+    if par.seed_topics.seeds is not None:
+        seed_topic_list = OmegaConf.to_container(par.seed_topics.seeds, resolve=True)
+        if not isinstance(seed_topic_list, list) or not all(isinstance(x, list) for x in seed_topic_list):
+            raise InvalidSeedTopicListError(seed_topic_list)
     else:
-        raise UnknownModelError(par.vectorizer.model)
-    return vectorizer_model
+        seed_topic_list = None
+
+    return embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list
+
+
+def aggregate_predictions_to_ann_level(df):
+    print("aggregate to ann_id/job add level")
+    topics_agg = df.group_by(
+        "ann_id",
+        "predicted_topic",
+    ).agg(
+        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
+        pl.col(
+            "training_data"
+        ).max(),  # during loading of embeddings, half of one add might have been used for training
+    )
+    print("make into wide format")
+    topics_wide = (
+        (
+            topics_agg.sort("predicted_topic").pivot(
+                values=["topic_probability"],
+                index=["ann_id", "training_data"],
+                on="predicted_topic",
+                aggregate_function=None,
+            )
+        )
+        .fill_null(0.0)
+        .select("ann_id", "training_data", pl.all().exclude("ann_id", "training_data").name.prefix("topic_"))
+    )
+    return topics_wide
 
 
 if __name__ == "__main__":
@@ -116,26 +146,22 @@ if __name__ == "__main__":
     print(f"Starting {Path(__file__).name}")
     start = time.time()
     print_params(full_par)
-    par.settings.nobs =1_000 # !!!!!!!!!!!!!!!!!!!!!!!!
+    par.settings.nobs = 10_000  # !!!!!!!!!!!!!!!!!!!!!!!!
     # Load
     print("Loading data...")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
-    documents = load_data(data_dir / "texts.parquet", text_col="text")[: par.settings.nobs]
+
+    texts = pl.read_parquet(data_dir / "texts.parquet")
+    if par.settings.nobs is not None:
+        texts = texts.head(par.settings.nobs)
+    documents = texts.select("text").to_series().to_list()
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
     # Choose models
-    embedding_model = get_embedding_model(embedding_model_name)
-    dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
-    clustering_model = get_clustering_model(par)
+    embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
+        par, embedding_model_name, embeddings, stop_words
+    )
     vectorizer_model = CountVectorizer(stop_words=stop_words)
-
-    # Handle seed topic input
-    if par.seed_topics.seeds is not None:
-        seed_topic_list = OmegaConf.to_container(par.seed_topics.seeds, resolve=True)
-        if not isinstance(seed_topic_list, list) or not all(isinstance(x, list) for x in seed_topic_list):
-            raise InvalidSeedTopicListError(seed_topic_list)
-    else:
-        seed_topic_list = None
 
     # Run BERTopic
     print("Training BERTopic model...")
@@ -158,85 +184,32 @@ if __name__ == "__main__":
 
     # Save model
     topic_model.save(
-        models_dir / "bertopic_model",
-        serialization="safetensors",
+        models_dir / "bertopic_model.pkl",
+        serialization="pickle",
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
     print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
 
-    par.settings.nobs_predict =1_010 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    # Avoid clustering when doing predictions on new data
-    topic_model.hdbscan_model = BaseCluster()
-
-    if par.settings.nobs_predict != 0:
-        print("Loading train+predict data...")
-        texts = pl.read_parquet(data_dir / "texts.parquet")
-        if par.settings.nobs_predict is None:
-            nobs_predict = texts.height - par.settings.nobs
-        else:
-            nobs_predict = par.settings.nobs_predict
-        total_obs = par.settings.nobs + nobs_predict
-
-        texts = texts.head(total_obs)
-        documents = texts["text"].to_list()
-        embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=total_obs)
-
-        print(f"Predicting topics on {nobs_predict} docs (training data is {par.settings.nobs})...")
-        shard_size = par.settings.nobs
-        for start_idx in range(par.settings.nobs, total_obs,shard_size):
-            end_idx = min(start_idx + shard_size, total_obs)
-            print(f"Processing documents {start_idx} to {end_idx}...")
-            batch_docs = documents[start_idx:end_idx]
-            batch_embeddings = embeddings[start_idx:end_idx]
-            batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
-
-            topics = np.concatenate([topics, batch_topics])
-            probs = np.concatenate([probs, batch_probs])
-
-    else:
-        print("No prediction on new data, only training data will be used.")
-
-
+    print("Saving predictions on training data...")
     texts = (
-            texts.with_row_index("row_nr")
-            .with_columns(
-                pl.Series("predicted_topic",topics),
-                pl.Series("topic_probability", probs),
-                ann_id=c.label.str.extract(r"^(\d+)_s", 1),
-                training_data=(pl.col("row_nr") < par.settings.nobs),
-            )
-            .drop("row_nr")
-            )
-
+        texts.with_row_index("row_nr")
+        .with_columns(
+            pl.Series("predicted_topic", topics),
+            pl.Series("topic_probability", probs),
+            ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+            training_data=pl.lit(True),
+        )
+        .drop("row_nr")
+    )
     print("Saving predictions at sentence level...")
 
     # Save results
-    texts.write_parquet(output_dir / "predicted_topics.parquet")
+    texts.write_parquet(output_dir / "predicted_topics_train.parquet")
 
-    print("aggregate to ann_id/job add level")
-    topics_agg = texts.group_by("ann_id", "predicted_topic",).agg(
-        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
-        pl.col("training_data").max() # during loading of embeddings, half of one add might have been used for training
-    )
-    print("make into wide format")
-    topics_wide = (
-        (
-            topics_agg.sort("predicted_topic").pivot(
-                values=["topic_probability"],
-                index=["ann_id","training_data"],
-                on="predicted_topic",
-                aggregate_function=None,
-            )
-        )
-        .fill_null(0.0)
-        .select("ann_id","training_data", pl.all().exclude("ann_id","training_data").name.prefix("topic_"))
-    )
-
+    topics_wide = aggregate_predictions_to_ann_level(texts)
     print("Saving aggregated results...")
-    topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")
-
+    topics_wide.write_parquet(output_dir / "predicted_topics_agg_train.parquet")
 
     # Wrap up
     stop = time.time()
