@@ -280,7 +280,9 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet").head(par_train.settings.nobs)
+    texts = pl.read_parquet(data_dir / "texts.parquet")
+    if par.settings.nobs is not None:
+        texts = texts.head(par_train.settings.nobs)
     documents = texts["text"].to_list()
 
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par_train.settings.nobs)
