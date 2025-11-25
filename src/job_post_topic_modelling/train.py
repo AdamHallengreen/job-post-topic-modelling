@@ -7,6 +7,7 @@ import polars as pl
 from polars import col as c
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
+from bertopic.cluster import BaseCluster
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
@@ -115,7 +116,7 @@ if __name__ == "__main__":
     print(f"Starting {Path(__file__).name}")
     start = time.time()
     print_params(full_par)
-
+    par.settings.nobs =1_000 # !!!!!!!!!!!!!!!!!!!!!!!!
     # Load
     print("Loading data...")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
@@ -164,29 +165,53 @@ if __name__ == "__main__":
     )
     print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
 
+    par.settings.nobs_predict =1_010 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    # Avoid clustering when doing predictions on new data
+    topic_model.hdbscan_model = BaseCluster()
 
-    print("Predict on remaining data...")
-    print("Loading full data...")
-    # if par.settings.nobs is not None:
-    texts = pl.read_parquet(data_dir / "texts.parquet")
-    documents = texts["text"].to_list()
-    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=None)
-    # Predict topics on all documents
-    print("Predicting topics on all docs...")
-    topics, probs = topic_model.transform(documents, embeddings=embeddings)
+    if par.settings.nobs_predict != 0:
+        print("Loading train+predict data...")
+        texts = pl.read_parquet(data_dir / "texts.parquet")
+        if par.settings.nobs_predict is None:
+            nobs_predict = texts.height - par.settings.nobs
+        else:
+            nobs_predict = par.settings.nobs_predict
+        total_obs = par.settings.nobs + nobs_predict
+
+        texts = texts.head(total_obs)
+        documents = texts["text"].to_list()
+        embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=total_obs)
+
+        print(f"Predicting topics on {nobs_predict} docs (training data is {par.settings.nobs})...")
+        shard_size = par.settings.nobs
+        for start_idx in range(par.settings.nobs, total_obs,shard_size):
+            end_idx = min(start_idx + shard_size, total_obs)
+            print(f"Processing documents {start_idx} to {end_idx}...")
+            batch_docs = documents[start_idx:end_idx]
+            batch_embeddings = embeddings[start_idx:end_idx]
+            batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
+
+            topics = np.concatenate([topics, batch_topics])
+            probs = np.concatenate([probs, batch_probs])
+
+    else:
+        print("No prediction on new data, only training data will be used.")
+
 
     texts = (
             texts.with_row_index("row_nr")
             .with_columns(
-                pl.Series("predicted_topic", topics),
+                pl.Series("predicted_topic",topics),
                 pl.Series("topic_probability", probs),
                 ann_id=c.label.str.extract(r"^(\d+)_s", 1),
-                training_data=(pl.col("row_nr") < full_par.train.settings.nobs),
+                training_data=(pl.col("row_nr") < par.settings.nobs),
             )
             .drop("row_nr")
-        )
+            )
+
     print("Saving predictions at sentence level...")
+
     # Save results
     texts.write_parquet(output_dir / "predicted_topics.parquet")
 
@@ -199,7 +224,7 @@ if __name__ == "__main__":
     topics_wide = (
         (
             topics_agg.sort("predicted_topic").pivot(
-                values=["topic_probability",'topic_dummy'],
+                values=["topic_probability"],
                 index=["ann_id","training_data"],
                 on="predicted_topic",
                 aggregate_function=None,
