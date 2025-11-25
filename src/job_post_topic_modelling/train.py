@@ -146,7 +146,7 @@ if __name__ == "__main__":
     print(f"Starting {Path(__file__).name}")
     start = time.time()
     print_params(full_par)
-    par.settings.nobs = 10_000  # !!!!!!!!!!!!!!!!!!!!!!!!
+
     # Load
     print("Loading data...")
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
-    print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
+    print(f"Saved BERTopic model to {models_dir / 'bertopic_model.pkl'}")
 
     print("Saving predictions on training data...")
     texts = (
