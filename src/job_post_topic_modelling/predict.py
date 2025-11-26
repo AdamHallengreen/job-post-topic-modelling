@@ -64,14 +64,17 @@ if __name__ == "__main__":
     vectorizer_model = get_vectorizer(par_evaluate, stop_words)
 
     topic_model = BERTopic.load(models_dir / "bertopic_model.pkl", embedding_model=embedding_model)
+    if par.settings.update_topics:
 
-    print("Updating topic representation...")
-    topic_model.update_topics(
-        documents_train,
-        vectorizer_model=vectorizer_model,
-        ctfidf_model=ctfidf_model,
-        representation_model=representation_model,
-    )
+        print("Updating topic representation...")
+        topic_model.update_topics(
+            documents_train,
+            vectorizer_model=vectorizer_model,
+            ctfidf_model=ctfidf_model,
+            representation_model=representation_model,
+        )
+    else:
+        print("Skipping topic representation update...")
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
