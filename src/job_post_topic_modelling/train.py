@@ -6,6 +6,7 @@ import numpy as np
 import polars as pl
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
+from sentence_transformers import SentenceTransformer
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
@@ -85,9 +86,16 @@ def get_clustering_model(par: OmegaConf):
         raise UnknownModelError(par.clustering.model)
     return clustering_model
 
+def get_embedding_model_cpu(embedding_model_name: str):
+    """
+    Get the embedding model name, checking if running on STATA server.
+    This is because the star server needs a local path
+    """
+    return SentenceTransformer(get_embedding_model_name(embedding_model_name),device='cpu')
+
 
 def load_model_objects(par, embedding_model_name, embeddings, stop_words):
-    embedding_model = get_embedding_model(embedding_model_name)
+    embedding_model = get_embedding_model_cpu(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
 

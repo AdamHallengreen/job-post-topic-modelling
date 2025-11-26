@@ -34,7 +34,6 @@ if __name__ == "__main__":
     par = full_par.predict
     par_train = full_par.train
     par_evaluate = full_par.evaluate
-    embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
