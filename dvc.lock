@@ -9,8 +9,8 @@ stages:
       size: 13307578
     - path: src/job_post_topic_modelling/prepare.py
       hash: md5
-      md5: 1a48e5d519df563073ef67a9bc953206
-      size: 13797
+      md5: 40c889ace83a462bcb02730846b64c42
+      size: 13813
     - path: src/job_post_topic_modelling/utils/find_project_root.py
       hash: md5
       md5: 865c2bda4ba114cec5b1b69baadf5a6f
@@ -280,8 +280,8 @@ stages:
     deps:
     - path: data/texts.parquet
       hash: md5
-      md5: f6bf3d6f05d88f893282413947d4207d
-      size: 1323202429
+      md5: 6181876cb7c1a72a029818d7afff2c2e
+      size: 802294
     - path: src/job_post_topic_modelling/embed.py
       hash: md5
       md5: d8e0f4fc52a7a6b943aee0c494871abe

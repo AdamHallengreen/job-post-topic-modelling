@@ -1,9 +1,15 @@
 {
-    "predict.py": "0.03 hours",
+    "predict.py": "0.18 hours",
     "step": 0,
-    "prepare.py": "0.01 hours",
-    "#Topics": 35,
-    "embed.py": "0.11 hours",
-    "train.py": "0.04 hours",
-    "evaluate.py": "0.01 hours"
+    "prepare.py": "1.04 hours",
+    "#Topics": 106,
+    "embed.py": "0.15 hours",
+    "train.py": "0.85 hours",
+    "evaluate.py": "0.08 hours",
+    "click_share_cv_log_r2": "0.0190",
+    "click_share_cv_log_n_selected": 106,
+    "click_share_male_cv_log_r2": "0.0214",
+    "click_share_male_cv_log_n_selected": 106,
+    "click_share_fem_cv_log_r2": "0.0079",
+    "click_share_fem_cv_log_n_selected": 105
 }

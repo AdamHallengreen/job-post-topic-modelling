@@ -81,9 +81,3 @@ stages:
     - output/bertopic_model_representation
 metrics:
 - output/metrics.json
-plots:
-- output/plots/images
-artifacts:
-  topic_info:
-    path: output/topic_info.csv
-    type: dataset
