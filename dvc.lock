@@ -112,28 +112,28 @@ stages:
       size: 432
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: 4e426faa167d33ca195141572630657c
-      size: 40024
+      md5: ab6a96c7f388c6b2874e1072cc89efeb
+      size: 36952
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 00f2dba634908ae6ccf6cf751fe65475
-      size: 579714
+      md5: 16bb5ebd6113f1ed0f3caaa96e4bc702
+      size: 577826
     - path: models/submodels/clustering_model.pkl
       hash: md5
-      md5: 6bdf89fdcb0a7bae230ab4f4c84ce74c
-      size: 12446953
+      md5: 2d02119b7a96ddc59c2de81f1f7cfbab
+      size: 12397650
     - path: models/submodels/dimensionality_reduction_model.pkl
       hash: md5
-      md5: 63f8fa198f8d9656c7493ea7502238b6
+      md5: eb19993dc4e8ad80cea82efa7ee282ba
       size: 315329001
     - path: output/predicted_topics_agg_train.parquet
       hash: md5
-      md5: 222b4558afa328c1800c3d5116005132
-      size: 102894
+      md5: b72bb851bbe47c3888006fbaca4965cc
+      size: 101544
     - path: output/predicted_topics_train.parquet
       hash: md5
-      md5: 1e9c40e13ceecb7085600cfa9ca50827
-      size: 2669444
+      md5: 65419c22464dfee43960a7517669637c
+      size: 2671367
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -143,24 +143,32 @@ stages:
       size: 432
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c53621b09b60e39270ed4c7c4092cdda
-      size: 40024
+      md5: ab6a96c7f388c6b2874e1072cc89efeb
+      size: 36952
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 4b32b406e6126e4d826a86d92216e106
-      size: 577471
+      md5: 16bb5ebd6113f1ed0f3caaa96e4bc702
+      size: 577826
+    - path: models/submodels/clustering_model.pkl
+      hash: md5
+      md5: 2d02119b7a96ddc59c2de81f1f7cfbab
+      size: 12397650
+    - path: models/submodels/dimensionality_reduction_model.pkl
+      hash: md5
+      md5: eb19993dc4e8ad80cea82efa7ee282ba
+      size: 315329001
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: fdc66ab32e5d23015b69afde989ac3bd
-      size: 15824
+      md5: dc2dc7378e676543d12f8401f03e5749
+      size: 15719
     - path: src/job_post_topic_modelling/predict.py
       hash: md5
-      md5: 7862f9fcd95ab181d529418fc3cea02a
-      size: 5363
+      md5: c94fea7358fb0852741868065905c049
+      size: 5709
     - path: src/job_post_topic_modelling/train.py
       hash: md5
-      md5: 1de971740c3ab1545eb3f8df11cc1d03
-      size: 8954
+      md5: c96f8057daeedf4e2d4de7ab54387295
+      size: 9234
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: 38c9d7aa5cd44970d1c40ae327840b97
@@ -232,12 +240,12 @@ stages:
     outs:
     - path: output/predicted_topics.parquet
       hash: md5
-      md5: 688150fdf1a89a7f3ccd2f30b6ceeeff
-      size: 2962762
+      md5: d9e8cc25561146795cf48988f73c5c43
+      size: 2962767
     - path: output/predicted_topics_agg.parquet
       hash: md5
-      md5: 90fc74aef277c06842aa161a4ea3842e
-      size: 213336
+      md5: 5170fe96d1b18ad4b36620d023d7dd28
+      size: 212084
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
@@ -247,24 +255,32 @@ stages:
       size: 432
     - path: models/bertopic_model/topic_embeddings.safetensors
       hash: md5
-      md5: c53621b09b60e39270ed4c7c4092cdda
-      size: 40024
+      md5: ab6a96c7f388c6b2874e1072cc89efeb
+      size: 36952
     - path: models/bertopic_model/topics.json
       hash: md5
-      md5: 4b32b406e6126e4d826a86d92216e106
-      size: 577471
+      md5: 16bb5ebd6113f1ed0f3caaa96e4bc702
+      size: 577826
+    - path: models/submodels/clustering_model.pkl
+      hash: md5
+      md5: 2d02119b7a96ddc59c2de81f1f7cfbab
+      size: 12397650
+    - path: models/submodels/dimensionality_reduction_model.pkl
+      hash: md5
+      md5: eb19993dc4e8ad80cea82efa7ee282ba
+      size: 315329001
     - path: output/predicted_topics_agg.parquet
       hash: md5
-      md5: 90fc74aef277c06842aa161a4ea3842e
-      size: 213336
+      md5: 5170fe96d1b18ad4b36620d023d7dd28
+      size: 212084
     - path: output/predicted_topics_agg_train.parquet
       hash: md5
-      md5: bac4b994205555415aafa5d24b532e3c
-      size: 107696
+      md5: b72bb851bbe47c3888006fbaca4965cc
+      size: 101544
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: fdc66ab32e5d23015b69afde989ac3bd
-      size: 15824
+      md5: dc2dc7378e676543d12f8401f03e5749
+      size: 15719
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: 38c9d7aa5cd44970d1c40ae327840b97
@@ -304,13 +320,13 @@ stages:
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: 237e429f856eee8fecd96823c0903ca3.dir
-      size: 609571
+      md5: 0ce4d4ee053da9b89ffe222b6c82050f.dir
+      size: 611791
       nfiles: 3
     - path: output/topic_info.csv
       hash: md5
-      md5: b9b7083ee0ba06bbda8c2d40695ac9df
-      size: 2456
+      md5: 8e7e9f7106b29563938febe3fb886bf3
+      size: 2432
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:

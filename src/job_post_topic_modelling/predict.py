@@ -80,9 +80,9 @@ if __name__ == "__main__":
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
-        with open(models_dir / "dimensionality_reduction_model.pkl", "rb") as f:
+        with open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "rb") as f:
             dimensionality_reduction_model = pickle.load(f) # noqa: S301
-        with open(models_dir / "clustering_model.pkl", "rb") as f:
+        with open(models_dir / r"submodels/clustering_model.pkl", "rb") as f:
             clustering_model = pickle.load(f) # noqa: S301
 
         if par_train.dimensionality_reduction.use_cuml:
