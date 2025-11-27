@@ -39,6 +39,8 @@ stages:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
+    - models/submodels/dimensionality_reduction_model.pkl
+    - models/submodels/clustering_model.pkl
     - output/predicted_topics_train.parquet
     - output/predicted_topics_agg_train.parquet
   predict:
@@ -47,9 +49,10 @@ stages:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
+    - models/submodels/dimensionality_reduction_model.pkl
+    - models/submodels/clustering_model.pkl
     - src/job_post_topic_modelling/predict.py
     - src/job_post_topic_modelling/train.py
-    - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/log_html.py
@@ -57,7 +60,6 @@ stages:
     params:
     - train
     - predict
-    - evaluate
     outs:
     - output/predicted_topics.parquet
     - output/predicted_topics_agg.parquet
@@ -67,6 +69,8 @@ stages:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
     - models/bertopic_model/topics.json
+    - models/submodels/dimensionality_reduction_model.pkl
+    - models/submodels/clustering_model.pkl
     - output/predicted_topics_agg_train.parquet
     - output/predicted_topics_agg.parquet
     - src/job_post_topic_modelling/evaluate.py
@@ -81,3 +85,9 @@ stages:
     - output/bertopic_model_representation
 metrics:
 - output/metrics.json
+plots:
+- output/plots/images
+artifacts:
+  topic_info:
+    path: output/topic_info.csv
+    type: dataset

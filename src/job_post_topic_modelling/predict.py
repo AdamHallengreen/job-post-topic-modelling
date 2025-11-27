@@ -14,7 +14,6 @@ from polars import col as c
 from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
-from job_post_topic_modelling.evaluate import get_cTFIDF_model, get_representation_model, get_vectorizer  # noqa: E402
 from job_post_topic_modelling.train import aggregate_predictions_to_ann_level, get_embedding_model_cpu  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
@@ -35,7 +34,6 @@ if __name__ == "__main__":
     full_par = OmegaConf.load(params_path)
     par = full_par.predict
     par_train = full_par.train
-    par_evaluate = full_par.evaluate
 
     # Process
     print(f"Starting {Path(__file__).name}")
@@ -59,24 +57,9 @@ if __name__ == "__main__":
     embedding_model_name = full_par.embed.model.embedding_model
 
     embedding_model = get_embedding_model_cpu(embedding_model_name)
-    ctfidf_model = get_cTFIDF_model(par_evaluate)
-    representation_model = get_representation_model(par_evaluate)
-    vectorizer_model = get_vectorizer(par_evaluate, stop_words)
 
     topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
     # topic_model.seed_topics = seed_topic_list # check if needed
-
-    if par.settings.update_topics:
-
-        print("Updating topic representation...")
-        topic_model.update_topics(
-            documents_train,
-            vectorizer_model=vectorizer_model,
-            ctfidf_model=ctfidf_model,
-            representation_model=representation_model,
-        )
-    else:
-        print("Skipping topic representation update...")
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
