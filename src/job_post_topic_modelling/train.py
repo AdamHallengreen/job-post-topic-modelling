@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 from typing import Any
-
+import pickle
 import numpy as np
 import polars as pl
 from bertopic import BERTopic
@@ -199,14 +199,16 @@ if __name__ == "__main__":
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
 
-    # Save model
+    print(f"Saving BERTopic model to {models_dir / 'bertopic_model'}")
     topic_model.save(
         models_dir / "bertopic_model",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
-    print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
+    print("Saving sub models ... ")
+    pickle.dump(topic_model.umap_model, open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "wb")) # noqa: SIM115
+    pickle.dump(topic_model.hdbscan_model, open(models_dir / r"submodels/clustering_model.pkl", "wb")) # noqa: SIM115
 
     print("Saving predictions on training data...")
     texts = (

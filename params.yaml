@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: null
+    nobs: 30000
     split_paragraphs: true
     split_sentences: true
   star:

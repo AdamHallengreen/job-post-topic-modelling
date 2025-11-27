@@ -1,3 +1,4 @@
+import pickle
 import time
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
 from job_post_topic_modelling.evaluate import get_cTFIDF_model, get_representation_model, get_vectorizer  # noqa: E402
-from job_post_topic_modelling.train import aggregate_predictions_to_ann_level, load_model_objects  # noqa: E402
+from job_post_topic_modelling.train import aggregate_predictions_to_ann_level, get_embedding_model_cpu  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
     load_pretrained_embeddings,
@@ -56,9 +57,8 @@ if __name__ == "__main__":
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
-    embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
-        par_train, embedding_model_name, embeddings, stop_words
-    )
+
+    embedding_model = get_embedding_model_cpu(embedding_model_name)
     ctfidf_model = get_cTFIDF_model(par_evaluate)
     representation_model = get_representation_model(par_evaluate)
     vectorizer_model = get_vectorizer(par_evaluate, stop_words)
@@ -80,6 +80,11 @@ if __name__ == "__main__":
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
+        with open(models_dir / "dimensionality_reduction_model.pkl", "rb") as f:
+            dimensionality_reduction_model = pickle.load(f) # noqa: S301
+        with open(models_dir / "clustering_model.pkl", "rb") as f:
+            clustering_model = pickle.load(f) # noqa: S301
+
         if par_train.dimensionality_reduction.use_cuml:
             dimensionality_reduction_model.n_features_in_ = embeddings.shape[1] # Monkey patch for cuml version
         topic_model.umap_model = dimensionality_reduction_model

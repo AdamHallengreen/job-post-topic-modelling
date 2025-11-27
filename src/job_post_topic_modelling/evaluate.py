@@ -22,7 +22,7 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
-from job_post_topic_modelling.train import load_model_objects, load_pretrained_embeddings  # noqa: E402
+from job_post_topic_modelling.train import get_embedding_model_cpu, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
 )
@@ -290,9 +290,8 @@ if __name__ == "__main__":
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
-    embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
-        par_train, embedding_model_name, embeddings, stop_words
-    )
+    embedding_model = get_embedding_model_cpu(embedding_model_name)
+
 
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
