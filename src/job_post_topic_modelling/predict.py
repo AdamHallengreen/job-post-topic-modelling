@@ -80,8 +80,8 @@ if __name__ == "__main__":
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
-        if par_train.clustering.use_cuml:
-            dimensionality_reduction_model.n_features_in_ = len(documents_train) # Monkey patch for cuml version
+        if par_train.dimensionality_reduction.use_cuml:
+            dimensionality_reduction_model.n_features_in_ = embeddings.shape[1] # Monkey patch for cuml version
         topic_model.umap_model = dimensionality_reduction_model
         topic_model.hdbscan_model = clustering_model
 
