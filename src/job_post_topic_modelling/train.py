@@ -8,13 +8,16 @@ from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from sentence_transformers import SentenceTransformer
 from dvclive import Live
-from hdbscan import HDBSCAN
+#from hdbscan import HDBSCAN
+#from umap import UMAP
+from cuml.cluster import HDBSCAN
+from cuml.manifold import UMAP
 from omegaconf import OmegaConf
 from polars import col as c
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
-from umap import UMAP
+
 
 from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter

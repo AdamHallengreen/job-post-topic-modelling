@@ -78,10 +78,16 @@ And they need to be removed manually. This specific package can be loaded from c
 Other data for packages have to manually loaded manually (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
 
 I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
-\# Make sure hf CLI is installed: pip install -U "huggingface_hub[cli]"
-hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2
-hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+\# Make sure hf CLI is installed: `pip install -U "huggingface_hub[cli]`
+`hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2`
+`hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
+
+Then use the following pip command to install the rest:
+
+```
+pip install -r requirements.txt
+```
 
 Downgrade kaleido so you don't need chrom (which needs the internet):
 ```
@@ -89,12 +95,6 @@ pip uninstall -y kaleido plotly
 pip install "kaleido==0.2.1" "plotly<6"
 ```
 
-
-Then use the following pip command to install the rest:
-
-```
-pip install -r requirements.txt
-```
 
 You also need to tell the environment that job-post-nlp is a package, by running:
 
@@ -112,6 +112,13 @@ You can the pre-commit and get ruff suggestions using:
 `pre-commit run -a`
 
 ---
+cuml for using gpu supported versions of hdbscan and umap is installed by 
+```
+conda create -n rapids-25.10 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=13.0' -y
+```
+conda install -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=13.0' --dry-run
+
+
 
 ---
 
