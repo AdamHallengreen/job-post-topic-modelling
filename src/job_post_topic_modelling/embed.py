@@ -20,7 +20,7 @@ def get_embedding_model_name(embedding_model_name: str):
     """
 
     # Check if running on STATA server, if yes set up path to load the correct SentenceTransformer
-    if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling","rapids-25.10","jobpost_rapids313"]:
+    if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling","job_rapids313"]:
         user = os.popen("whoami").read().strip()  # noqa: S605, S607
         # Optional: force strict offline behavior
         os.environ["HF_HUB_OFFLINE"] = "1"

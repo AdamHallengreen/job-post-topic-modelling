@@ -69,7 +69,7 @@ To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookie
 
 The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by 
 ```
-conda create -n jobpost_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version>=12.0,<=12.9'
+conda create -n job_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=12.8'
 ```
 
 Which can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
