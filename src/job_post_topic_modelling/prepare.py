@@ -16,8 +16,8 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 try_inter()
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
-# Check if running on STATA server, if yes set up path to load nltk data
-if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling"]:
+# Check if running on STAR server, if yes set up path to load nltk data
+if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling","rapids-25.10","jobpost_rapids313"]:
     user = os.popen("whoami").read().strip()  # noqa: S605, S607
     import nltk  # type: ignore  # noqa: PGH003
 
@@ -320,6 +320,7 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.prepare
+
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()

@@ -66,9 +66,14 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model","cuml"]) }
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
-        # pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
-        # Start UMAP from PCA embeddings
-        dimensionality_reduction_model = cumlUMAP(init="pca", **args) if par.dimensionality_reduction.cuml else UMAP(init="pca", **args)
+        #pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
+        if par.dimensionality_reduction.cuml:
+            for key in ['low_memory']:
+                del args[key]
+            dimensionality_reduction_model = cumlUMAP(init='spectral',**args)
+        else:
+            # Start UMAP from PCA embeddings using init keyword
+            dimensionality_reduction_model = UMAP(init='pca', **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -81,7 +86,8 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
 def get_clustering_model(par: OmegaConf):
     args = {k: v for k, v in par.clustering.items() if k not in ["model","cuml"] }
     if par.clustering.model == "HDBSCAN":
-        clustering_model = cumlHDBSCAN(**args) if par.clustering.cuml else HDBSCAN(**args)
+        #clustering_model = cumlHDBSCAN(**args) if par.clustering.cuml else HDBSCAN(**args)
+        clustering_model = HDBSCAN(**args)
     elif par.clustering.model == "KMeans":
         clustering_model = KMeans(**args)
     else:

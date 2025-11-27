@@ -67,15 +67,15 @@ To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookie
 
 ## Notes about working on the star server
 
-On the star server uv doesn't work. But instead, you can (from a computer where it does work) create a requirement.txt file using:
-
+The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by 
 ```
-uv export --no-emit-workspace --no-dev --no-annotate --no-header --no-hashes --output-file requirements.txt
+conda create -n jobpost_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version>=12.0,<=12.9'
 ```
 
 Which can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
 And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
-Other data for packages have to manually loaded manually (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
+Other data for packages have to manually loaded (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
+It is the loaded at the begining of prepare (you might have to adjust the path)
 
 I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
 \# Make sure hf CLI is installed: `pip install -U "huggingface_hub[cli]`
@@ -83,13 +83,14 @@ I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on 
 `hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
-The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by 
+
+On the star server uv doesn't work. But instead, you can (from a computer where it does work) create a requirement.txt file using:
+
 ```
-conda create -n jobpost_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version>=12.0,<=12.9'
+uv export --no-emit-workspace --no-dev --no-annotate --no-header --no-hashes --output-file requirements.txt
 ```
 
-
-Then use the following pip command to install the rest:
+Then use the following pip command to install them:
 
 ```
 pip install -r requirements.txt

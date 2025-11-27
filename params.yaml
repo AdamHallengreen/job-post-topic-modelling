@@ -33,6 +33,7 @@ train:
     metric: cosine
     random_state: null
     low_memory: true
+    use_cuml: true
   clustering:
     model: HDBSCAN
     min_cluster_size: 1000
@@ -40,6 +41,7 @@ train:
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
+    use_cuml: false
 predict:
   settings:
     nobs: 2000000
