@@ -1,12 +1,13 @@
-import time  # noqa: I001 cuml has to be import before bertopic
+import time
 from pathlib import Path
 from typing import Any
-from cuml.cluster import HDBSCAN as cumlHDBSCAN
-from cuml.manifold import UMAP as cumlUMAP
+
 import numpy as np
 import polars as pl
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
+from cuml.cluster import HDBSCAN as cumlHDBSCAN
+from cuml.manifold import UMAP as cumlUMAP
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf

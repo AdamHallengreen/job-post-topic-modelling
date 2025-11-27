@@ -98,6 +98,7 @@ if __name__ == "__main__":
     topics = np.array([], dtype=int)
     probs = np.array([], dtype=float)
     stop = par.settings.nobs if par.settings.nobs is not None else len(documents)
+    stop = min(stop, len(documents))
 
     for start_idx in range(0, stop, shard_size):
         end_idx = min(start_idx + shard_size, stop)

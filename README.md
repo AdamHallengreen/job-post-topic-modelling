@@ -71,8 +71,8 @@ The conda environment jobpost_rapids313 with cuml for using gpu supported versio
 ```
 conda create -n job_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=12.8'
 ```
-
-Which can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
+I choose cuda-version 12.8 because it matches the one pytorch loads automatically
+The environment can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
 And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
 Other data for packages have to manually loaded (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
 It is the loaded at the begining of prepare (you might have to adjust the path)
