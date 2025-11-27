@@ -83,6 +83,12 @@ I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on 
 `hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
+The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by 
+```
+conda create -n jobpost_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version>=12.0,<=12.9'
+```
+
+
 Then use the following pip command to install the rest:
 
 ```
@@ -112,11 +118,7 @@ You can the pre-commit and get ruff suggestions using:
 `pre-commit run -a`
 
 ---
-cuml for using gpu supported versions of hdbscan and umap is installed by 
-```
-conda create -n rapids-25.10 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=13.0' -y
-```
-conda install -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=13.0' --dry-run
+
 
 
 

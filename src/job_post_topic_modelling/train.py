@@ -6,20 +6,19 @@ import numpy as np
 import polars as pl
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
-from sentence_transformers import SentenceTransformer
+from cuml.cluster import HDBSCAN as cumlHDBSCAN
+from cuml.manifold import UMAP as cumlUMAP
 from dvclive import Live
-#from hdbscan import HDBSCAN
-#from umap import UMAP
-from cuml.cluster import HDBSCAN
-from cuml.manifold import UMAP
+from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
 from polars import col as c
+from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
+from umap import UMAP
 
-
-from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
+from job_post_topic_modelling.embed import get_embedding_model_name
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
@@ -64,12 +63,12 @@ def rescale(x, inplace=False):
 
 
 def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
-    args = {k: v for k, v in par.dimensionality_reduction.items() if k != "model"}
+    args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model","cuml"]) }
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
         # pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
         # Start UMAP from PCA embeddings
-        dimensionality_reduction_model = UMAP(init="pca", **args)
+        dimensionality_reduction_model = cumlUMAP(init="pca", **args) if par.dimensionality_reduction.cuml else UMAP(init="pca", **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -80,9 +79,9 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
 
 
 def get_clustering_model(par: OmegaConf):
-    args = {k: v for k, v in par.clustering.items() if k != "model"}
+    args = {k: v for k, v in par.clustering.items() if k not in ["model","cuml"] }
     if par.clustering.model == "HDBSCAN":
-        clustering_model = HDBSCAN(**args)
+        clustering_model = cumlHDBSCAN(**args) if par.clustering.cuml else HDBSCAN(**args)
     elif par.clustering.model == "KMeans":
         clustering_model = KMeans(**args)
     else:
