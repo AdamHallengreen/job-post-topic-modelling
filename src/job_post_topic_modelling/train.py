@@ -1,13 +1,12 @@
-import time
+import time  # noqa: I001 cuml has to be import before bertopic
 from pathlib import Path
 from typing import Any
-
+from cuml.cluster import HDBSCAN as cumlHDBSCAN
+from cuml.manifold import UMAP as cumlUMAP
 import numpy as np
 import polars as pl
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
-from cuml.cluster import HDBSCAN as cumlHDBSCAN
-from cuml.manifold import UMAP as cumlUMAP
 from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
@@ -63,14 +62,16 @@ def rescale(x, inplace=False):
 
 
 def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
-    args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model","cuml"]) }
+    args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model","use_cuml"]) }
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
         #pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
-        if par.dimensionality_reduction.cuml:
+        if par.dimensionality_reduction.use_cuml:
             for key in ['low_memory']:
                 del args[key]
-            dimensionality_reduction_model = cumlUMAP(init='spectral',**args)
+            dimensionality_reduction_model = cumlUMAP(init='spectral',
+                                        build_algo='brute_force_knn', # currently transform only supports this algo
+                                        **args)
         else:
             # Start UMAP from PCA embeddings using init keyword
             dimensionality_reduction_model = UMAP(init='pca', **args)
@@ -84,10 +85,9 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
 
 
 def get_clustering_model(par: OmegaConf):
-    args = {k: v for k, v in par.clustering.items() if k not in ["model","cuml"] }
+    args = {k: v for k, v in par.clustering.items() if k not in ["model","use_cuml"] }
     if par.clustering.model == "HDBSCAN":
-        #clustering_model = cumlHDBSCAN(**args) if par.clustering.cuml else HDBSCAN(**args)
-        clustering_model = HDBSCAN(**args)
+        clustering_model = cumlHDBSCAN(**args) if par.clustering.use_cuml else HDBSCAN(**args)
     elif par.clustering.model == "KMeans":
         clustering_model = KMeans(**args)
     else:
