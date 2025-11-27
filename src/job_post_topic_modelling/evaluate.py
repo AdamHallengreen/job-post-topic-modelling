@@ -292,7 +292,6 @@ if __name__ == "__main__":
     embedding_model_name = full_par.embed.model.embedding_model
     embedding_model = get_embedding_model_cpu(embedding_model_name)
 
-
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)

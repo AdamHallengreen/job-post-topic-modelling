@@ -64,12 +64,12 @@ if __name__ == "__main__":
     if par.settings.clustering:
         print("Using clustering model for predictions...")
         with open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "rb") as f:
-            dimensionality_reduction_model = pickle.load(f) # noqa: S301
+            dimensionality_reduction_model = pickle.load(f)  # noqa: S301
         with open(models_dir / r"submodels/clustering_model.pkl", "rb") as f:
-            clustering_model = pickle.load(f) # noqa: S301
+            clustering_model = pickle.load(f)  # noqa: S301
 
         if par_train.dimensionality_reduction.use_cuml:
-            dimensionality_reduction_model.n_features_in_ = embeddings.shape[1] # Monkey patch for cuml version
+            dimensionality_reduction_model.n_features_in_ = embeddings.shape[1]  # Monkey patch for cuml version
         topic_model.umap_model = dimensionality_reduction_model
         topic_model.hdbscan_model = clustering_model
 

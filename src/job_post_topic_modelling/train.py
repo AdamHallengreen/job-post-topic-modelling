@@ -1,7 +1,8 @@
+import pickle
 import time
 from pathlib import Path
 from typing import Any
-import pickle
+
 import numpy as np
 import polars as pl
 from bertopic import BERTopic
@@ -63,19 +64,21 @@ def rescale(x, inplace=False):
 
 
 def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
-    args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model","use_cuml"]) }
+    args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model", "use_cuml"])}
     if par.dimensionality_reduction.model == "UMAP":
         # Initialize and rescale PCA embeddings
-        #pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
+        # pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
         if par.dimensionality_reduction.use_cuml:
-            for key in ['low_memory']:
+            for key in ["low_memory"]:
                 del args[key]
-            dimensionality_reduction_model = cumlUMAP(init='spectral',
-                                        build_algo='brute_force_knn', # currently transform only supports this algo
-                                        **args)
+            dimensionality_reduction_model = cumlUMAP(
+                init="spectral",
+                build_algo="brute_force_knn",  # currently transform only supports this algo
+                **args,
+            )
         else:
             # Start UMAP from PCA embeddings using init keyword
-            dimensionality_reduction_model = UMAP(init='pca', **args)
+            dimensionality_reduction_model = UMAP(init="pca", **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -86,7 +89,7 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
 
 
 def get_clustering_model(par: OmegaConf):
-    args = {k: v for k, v in par.clustering.items() if k not in ["model","use_cuml"] }
+    args = {k: v for k, v in par.clustering.items() if k not in ["model", "use_cuml"]}
     if par.clustering.model == "HDBSCAN":
         clustering_model = cumlHDBSCAN(**args) if par.clustering.use_cuml else HDBSCAN(**args)
     elif par.clustering.model == "KMeans":
@@ -95,12 +98,13 @@ def get_clustering_model(par: OmegaConf):
         raise UnknownModelError(par.clustering.model)
     return clustering_model
 
+
 def get_embedding_model_cpu(embedding_model_name: str):
     """
     Get the embedding model name, checking if running on STATA server.
     This is because the star server needs a local path
     """
-    return SentenceTransformer(get_embedding_model_name(embedding_model_name),device='cpu')
+    return SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
 
 
 def load_model_objects(par, embedding_model_name, embeddings, stop_words):
@@ -207,8 +211,8 @@ if __name__ == "__main__":
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
     print("Saving sub models ... ")
-    pickle.dump(topic_model.umap_model, open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "wb")) # noqa: SIM115
-    pickle.dump(topic_model.hdbscan_model, open(models_dir / r"submodels/clustering_model.pkl", "wb")) # noqa: SIM115
+    pickle.dump(topic_model.umap_model, open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "wb"))  # noqa: SIM115
+    pickle.dump(topic_model.hdbscan_model, open(models_dir / r"submodels/clustering_model.pkl", "wb"))  # noqa: SIM115
 
     print("Saving predictions on training data...")
     texts = (
