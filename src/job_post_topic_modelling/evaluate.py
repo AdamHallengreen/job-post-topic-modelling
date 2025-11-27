@@ -298,7 +298,7 @@ if __name__ == "__main__":
     representation_model = get_representation_model(par)
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
 
-    topic_model = BERTopic.load(models_dir / "bertopic_model.pkl", embedding_model=embedding_model)
+    topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
 
     print("Updating topic representation...")
     topic_model.update_topics(

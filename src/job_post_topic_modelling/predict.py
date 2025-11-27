@@ -5,6 +5,7 @@ import numpy as np
 import polars as pl
 from bertopic import BERTopic
 from bertopic.cluster import BaseCluster
+from bertopic.dimensionality import BaseDimensionalityReduction
 from dvclive import Live
 from omegaconf import OmegaConf
 from polars import col as c
@@ -62,7 +63,9 @@ if __name__ == "__main__":
     representation_model = get_representation_model(par_evaluate)
     vectorizer_model = get_vectorizer(par_evaluate, stop_words)
 
-    topic_model = BERTopic.load(models_dir / "bertopic_model.pkl", embedding_model=embedding_model)
+    topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
+    # topic_model.seed_topics = seed_topic_list # check if needed
+
     if par.settings.update_topics:
 
         print("Updating topic representation...")
@@ -77,10 +80,13 @@ if __name__ == "__main__":
 
     if par.settings.clustering:
         print("Using clustering model for predictions...")
+        topic_model.umap_model = dimensionality_reduction_model
+        topic_model.hdbscan_model = clustering_model
         pass
     else:
         print("Predicting using cosine similarity (no clustering model)...")
         topic_model.hdbscan_model = BaseCluster()
+        topic_model.umap_model = BaseDimensionalityReduction()
 
     if (par.settings.batch_mode) and (par_train.settings.nobs is not None):
         shard_size = par_train.settings.nobs

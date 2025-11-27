@@ -192,12 +192,12 @@ if __name__ == "__main__":
 
     # Save model
     topic_model.save(
-        models_dir / "bertopic_model.pkl",
-        serialization="pickle",
+        models_dir / "bertopic_model",
+        serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
-    print(f"Saved BERTopic model to {models_dir / 'bertopic_model.pkl'}")
+    print(f"Saved BERTopic model to {models_dir / 'bertopic_model'}")
 
     print("Saving predictions on training data...")
     texts = (
