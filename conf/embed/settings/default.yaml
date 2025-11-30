@@ -2,4 +2,4 @@ show_progress_bar: True
 batch_size: 64
 device: null # use null for auto-detect
 num_workers: 1
-shard_size: 1_000_000
+shard_size: 2_000_000
