@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: 30000
+    nobs: null
     split_paragraphs: true
     split_sentences: true
   star:
@@ -22,32 +22,31 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
-    nobs: 1000000
+    nobs: 3000000
   seed_topics:
     seeds: null
   dimensionality_reduction:
     model: UMAP
     n_neighbors: 60
-    n_components: 5
+    n_components: 10
     min_dist: 0.0
     metric: cosine
     random_state: null
     low_memory: true
-    use_cuml: true
+    use_cuml: false
   clustering:
     model: HDBSCAN
-    min_cluster_size: 1000
-    min_samples: 500
+    min_cluster_size: 2000
+    min_samples: 1000
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
     use_cuml: false
 predict:
   settings:
-    nobs: 2000000
-    clustering: false
+    nobs: 6000000
+    clustering: true
     batch_mode: false
-    update_topics: true
 evaluate:
   vectorizer:
     model: CountVectorizer
