@@ -8,7 +8,6 @@ import polars as pl
 from bertopic import BERTopic
 from bertopic.cluster import BaseCluster
 from bertopic.dimensionality import BaseDimensionalityReduction
-from dvclive import Live
 from omegaconf import OmegaConf
 from polars import col as c
 
