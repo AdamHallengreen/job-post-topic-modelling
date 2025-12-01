@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: null
+    nobs: 10000
     split_paragraphs: true
     split_sentences: true
   star:
@@ -11,7 +11,7 @@ embed:
     batch_size: 64
     device: null
     num_workers: 1
-    shard_size: 1000000
+    shard_size: 50000
   model:
     embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
     use_model2vec: false
@@ -22,13 +22,13 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
-    nobs: 3000000
+    nobs: 50000
   seed_topics:
     seeds: null
   dimensionality_reduction:
     model: UMAP
     n_neighbors: 60
-    n_components: 10
+    n_components: 5
     min_dist: 0.0
     metric: cosine
     random_state: null
@@ -36,16 +36,16 @@ train:
     use_cuml: false
   clustering:
     model: HDBSCAN
-    min_cluster_size: 2000
-    min_samples: 1000
+    min_cluster_size: 100
+    min_samples: 50
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
     use_cuml: false
 predict:
   settings:
-    nobs: 6000000
-    clustering: true
+    nobs: 150000
+    clustering: false
     batch_mode: false
 evaluate:
   vectorizer:
