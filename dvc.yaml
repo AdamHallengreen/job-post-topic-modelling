@@ -91,7 +91,7 @@ stages:
     outs:
     - output/topic_info.csv
     - output/bertopic_model_representation
-    always_run: true
+    always_changed: true
 metrics:
 - output/metrics.json
 plots:
