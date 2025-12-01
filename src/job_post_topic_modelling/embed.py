@@ -1,10 +1,10 @@
+import json
 import os
 import shutil
 import time
 from pathlib import Path
 
 import numpy as np
-from dvclive import Live
 from omegaconf import OmegaConf
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.models import StaticEmbedding
@@ -122,7 +122,5 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        # Log metrics
-        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+    with ((output_dir / "metrics") / "embed.json").open("w") as f:
+        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)

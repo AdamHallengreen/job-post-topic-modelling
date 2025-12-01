@@ -10,6 +10,7 @@ stages:
     - prepare
     outs:
     - data/texts.parquet
+    - output/metrics/prepare.json
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
@@ -22,6 +23,7 @@ stages:
     - embed
     outs:
     - data/embeddings/
+    - output/metrics/embed.json
   train:
     cmd: python src/job_post_topic_modelling/train.py
     deps:
@@ -43,6 +45,7 @@ stages:
     - models/submodels/clustering_model.pkl
     - output/predicted_topics_train.parquet
     - output/predicted_topics_agg_train.parquet
+    - output/metrics/train.json
   predict:
     cmd: python src/job_post_topic_modelling/predict.py
     deps:
@@ -63,6 +66,7 @@ stages:
     outs:
     - output/predicted_topics.parquet
     - output/predicted_topics_agg.parquet
+    - output/metrics/train.json
   evaluate:
     cmd: python src/job_post_topic_modelling/evaluate.py
     deps:
@@ -78,11 +82,16 @@ stages:
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/log_html.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
+    - output/metrics/prepare.json
+    - output/metrics/embed.json
+    - output/metrics/train.json
+    - output/metrics/predict.json
     params:
     - evaluate
     outs:
     - output/topic_info.csv
     - output/bertopic_model_representation
+    always_run: true
 metrics:
 - output/metrics.json
 plots:

@@ -1,3 +1,4 @@
+import json
 import pickle
 import time
 from pathlib import Path
@@ -9,7 +10,6 @@ from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from cuml.cluster import HDBSCAN as cumlHDBSCAN
 from cuml.manifold import UMAP as cumlUMAP
-from dvclive import Live
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
 from polars import col as c
@@ -240,6 +240,6 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+    # Log metrics using
+    with ((output_dir / "metrics") / "train.json").open("w") as f:
+        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)

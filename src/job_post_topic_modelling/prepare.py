@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import time
@@ -5,7 +6,6 @@ from pathlib import Path
 
 # For plotting
 import polars as pl
-from dvclive import Live
 from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
@@ -363,10 +363,9 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        # Log metrics
-        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+    # Save metrics
+    with ((output_dir / "metrics") / "prepare.json").open("w") as f:
+        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
 
     if False:  # For debugging purposes
         text_org = load_data(file_path, par)

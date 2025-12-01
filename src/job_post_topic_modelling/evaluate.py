@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from pathlib import Path
@@ -314,6 +315,18 @@ if __name__ == "__main__":
         save_ctfidf=False,  # True, # There is some error here for TRUE
         save_embedding_model=get_embedding_model_name(embedding_model_name),
     )
+
+    print("Logging metrics from previous stages...")
+    stages = ["prepare", "embed", "train", "predict"]
+    with Live(dir=str(output_dir), cache_images=True, resume=False) as live:
+        for stage in stages:
+            print(stage)
+            stage_metrics_path = (output_dir / "metrics") / f"{stage}.json"
+            with stage_metrics_path.open("r") as f:
+                stage_metrics = json.load(f)
+            print(stage_metrics)
+            for key, value in stage_metrics.items():
+                live.log_metric(key, value, plot=False)
 
     # If running on star data calculate out-of-sample prediction of click-shares
     if full_par.prepare.star.usestar == 1:
