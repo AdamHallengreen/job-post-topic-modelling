@@ -240,6 +240,6 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using
+    # Log metrics
     with ((output_dir / "metrics") / "train.json").open("w") as f:
         json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)

@@ -1,3 +1,4 @@
+import json
 import pickle
 import time
 from pathlib import Path
@@ -126,6 +127,6 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+    # Log metrics using
+    with ((output_dir / "metrics") / "predict.json").open("w") as f:
+        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
