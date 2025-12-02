@@ -337,12 +337,20 @@ if __name__ == "__main__":
         df_merged = topics.join(click_shares, on="ann_id", how="inner").with_columns(*[
             pl.col(f"apply_share{suf}").log().alias(f"l_apply_share{suf}") for suf in ["", "_male", "_fem"]
         ])
-        predictors = topics.select(cs.starts_with("topic_")).columns
+        predictors = topics.select(cs.starts_with("p_topic_")).columns
+        d_predictors = topics.select(cs.starts_with("d_topic_")).columns
 
         results_share_cv_log = linear_lasso_cv_oos(
             df=df_merged.filter(pl.col("apply_share") > 0.0),
             outcome="l_apply_share",
             predictors=predictors,
+            random_state=seed,
+        )
+
+        results_share_cv_log_d = linear_lasso_cv_oos(
+            df=df_merged.filter(pl.col("apply_share") > 0.0),
+            outcome="l_apply_share",
+            predictors=d_predictors,
             random_state=seed,
         )
         results_share_cv_log_train = linear_lasso_cv_oos(
@@ -371,7 +379,7 @@ if __name__ == "__main__":
         df_merged_train = topics_train.join(click_shares, on="ann_id", how="inner").with_columns(*[
             pl.col(f"apply_share{suf}").log().alias(f"l_apply_share{suf}") for suf in ["", "_male", "_fem"]
         ])
-        predictors = topics_train.select(cs.starts_with("topic_")).columns
+        predictors = topics_train.select(cs.starts_with("p_topic_")).columns
 
         results_share_cv_log_train_topics = linear_lasso_cv_oos(
             df=df_merged_train.filter(pl.col("apply_share") > 0.0),
@@ -391,12 +399,13 @@ if __name__ == "__main__":
         output_fig = R2_dicts_to_fig(
             [
                 results_share_cv_log,
+                results_share_cv_log_d,
                 results_share_cv_log_train,
                 results_share_cv_log_train_topics,
                 results_share_cv_log_male,
                 results_share_cv_log_fem,
             ],
-            row_names=["All", "Topic training", "Topic training topics", "Men", "Women"],
+            row_names=["All", "Dummies","Topic training", "Topic training topics", "Men", "Women"],
             columns=columns,
             float_format="%.4f",
         )

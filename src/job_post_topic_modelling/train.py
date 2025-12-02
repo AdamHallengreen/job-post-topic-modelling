@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 from bertopic import BERTopic
 from bertopic.dimensionality import BaseDimensionalityReduction
 from cuml.cluster import HDBSCAN as cumlHDBSCAN
@@ -130,7 +131,8 @@ def aggregate_predictions_to_ann_level(df):
         "ann_id",
         "predicted_topic",
     ).agg(
-        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("topic_probability"),
+        (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("p_topic"),
+        (pl.col("topic_probability").max()>0).alias("d_topic"),
         pl.col(
             "training_data"
         ).max(),  # during loading of embeddings, half of one add might have been used for training
@@ -139,14 +141,15 @@ def aggregate_predictions_to_ann_level(df):
     topics_wide = (
         (
             topics_agg.sort("predicted_topic").pivot(
-                values=["topic_probability"],
+                values=["p_topic",'d_topic'],
                 index=["ann_id", "training_data"],
                 on="predicted_topic",
                 aggregate_function=None,
             )
+        ).with_columns(
+            cs.starts_with('p_topic').fill_null(0.0),
+            cs.starts_with('d_topic').fill_null(False),
         )
-        .fill_null(0.0)
-        .select("ann_id", "training_data", pl.all().exclude("ann_id", "training_data").name.prefix("topic_"))
     )
     return topics_wide
 
