@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: 10000
+    nobs: 30000
     split_paragraphs: true
     split_sentences: true
   star:
@@ -33,7 +33,7 @@ train:
     metric: cosine
     random_state: null
     low_memory: true
-    use_cuml: false
+    use_cuml: True
   clustering:
     model: HDBSCAN
     min_cluster_size: 100
@@ -41,10 +41,10 @@ train:
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
-    use_cuml: false
+    use_cuml: True
 predict:
   settings:
-    nobs: 150000
+    nobs: 100000
     clustering: false
     batch_mode: false
 evaluate:
