@@ -126,7 +126,7 @@ def load_model_objects(par, embedding_model_name, embeddings, stop_words):
 
 
 def aggregate_predictions_to_ann_level(df):
-    print("aggregate to ann_id/job add level")
+    print("Aggregate to ann_id/job add level")
     topics_agg = df.group_by(
         "ann_id",
         "predicted_topic",
@@ -137,7 +137,7 @@ def aggregate_predictions_to_ann_level(df):
             "training_data"
         ).max(),  # during loading of embeddings, half of one add might have been used for training
     )
-    print("make into wide format")
+    print("Make into wide format")
     topics_wide = (
         (
             topics_agg.sort("predicted_topic").pivot(

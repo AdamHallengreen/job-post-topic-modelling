@@ -10,6 +10,7 @@ from bertopic.cluster import BaseCluster
 from bertopic.dimensionality import BaseDimensionalityReduction
 from omegaconf import OmegaConf
 from polars import col as c
+from sklearn.metrics.pairwise import cosine_similarity
 
 from job_post_topic_modelling.utils.miscellaneous import try_inter
 
@@ -85,38 +86,88 @@ if __name__ == "__main__":
         print("Predicting topics for all documents at once...")
         shard_size = len(documents)
 
-    topics = np.array([], dtype=int)
-    probs = np.array([], dtype=float)
     stop = par.settings.nobs if par.settings.nobs is not None else len(documents)
     stop = min(stop, len(documents))
 
-    for start_idx in range(0, stop, shard_size):
-        end_idx = min(start_idx + shard_size, stop)
-        print(f"Processing documents {start_idx} to {end_idx}...")
-        batch_docs = documents[start_idx:end_idx]
-        batch_embeddings = embeddings[start_idx:end_idx]
-        batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
+    if not par.full_p_dist:
+        print("Predicting most likely topics...")
+        topics = np.array([], dtype=int)
+        probs = np.array([], dtype=float)
+        for start_idx in range(0, stop, shard_size):
+            end_idx = min(start_idx + shard_size, stop)
+            print(f"Processing documents {start_idx} to {end_idx}...")
+            batch_docs = documents[start_idx:end_idx]
+            batch_embeddings = embeddings[start_idx:end_idx]
+            batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
 
-        topics = np.concatenate([topics, batch_topics])
-        probs = np.concatenate([probs, batch_probs])
+            topics = np.concatenate([topics, batch_topics])
+            probs = np.concatenate([probs, batch_probs])
 
-    texts = (
-        texts.with_row_index("row_nr")
-        .with_columns(
-            pl.Series("predicted_topic", topics),
-            pl.Series("topic_probability", probs),
-            ann_id=c.label.str.extract(r"^(\d+)_s", 1),
-            training_data=(pl.col("row_nr") < par_train.settings.nobs),
+        texts = (
+            texts.with_row_index("row_nr")
+            .with_columns(
+                pl.Series("predicted_topic", topics),
+                pl.Series("topic_probability", probs),
+                ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+                training_data=(pl.col("row_nr") < par_train.settings.nobs),
+            )
+            .drop("row_nr")
         )
-        .drop("row_nr")
-    )
+        print("Saving predictions at sentence level...")
 
-    print("Saving predictions at sentence level...")
+        # Save results
+        texts.write_parquet(output_dir / "predicted_topics.parquet")
 
-    # Save results
-    texts.write_parquet(output_dir / "predicted_topics.parquet")
+        topics_wide = aggregate_predictions_to_ann_level(texts)
 
-    topics_wide = aggregate_predictions_to_ann_level(texts)
+
+    elif par.full_p_dist:
+        print("Predicting full probability distributions...")
+        if par.settings.clustering:
+            raise ValueError("Full probability distributions are not compatible with clustering.")  # noqa: TRY003
+
+        for start_idx in range(0, stop, shard_size):
+            end_idx = min(start_idx + shard_size, stop)
+            print(f"Processing documents {start_idx} to {end_idx}...")
+            batch_docs = documents[start_idx:end_idx]
+            batch_embeddings = embeddings[start_idx:end_idx]
+            sim_matrix = cosine_similarity(
+                batch_embeddings,
+                np.array(topic_model.topic_embeddings_),
+            )
+            # Replace negatives with zeros
+            sim_matrix[sim_matrix < 0] = 0
+            probs_batch = sim_matrix / sim_matrix.sum(axis=1, keepdims=True)
+            if start_idx == 0:  # noqa: SIM108
+                probs = probs_batch
+            else:
+                probs = np.vstack([probs, probs_batch])
+
+
+        prob_df = pl.DataFrame(
+            probs,
+            schema=[f"topic_{i-topic_model._outliers}" for i in range(probs.shape[1])],
+        ).with_columns(
+            label = texts["label"]
+        ).with_row_index("row_nr").with_columns(
+            training_data=(pl.col("label").is_not_null() & (pl.col("row_nr") < par_train.settings.nobs)),
+        ).drop("row_nr")
+
+        texts = texts.join(prob_df, on="label").with_columns(
+            ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+        )
+        print("Saving predictions at sentence level...")
+
+        # Save results
+        texts.write_parquet(output_dir / "predicted_topics.parquet")
+
+        topics_wide = texts.group_by('ann_id').agg(
+            *[(pl.lit(1) - (pl.lit(1) - c(f'topic_{ti-topic_model._outliers}')).product()).alias(f"p_topic_{ti}")
+             for ti in range(probs.shape[1])],
+            pl.col("training_data").max()
+        )
+
+
 
     print("Saving aggregated results...")
     topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")

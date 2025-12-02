@@ -346,13 +346,18 @@ if __name__ == "__main__":
             predictors=predictors,
             random_state=seed,
         )
-
-        results_share_cv_log_d = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share") > 0.0),
-            outcome="l_apply_share",
-            predictors=d_predictors,
-            random_state=seed,
-        )
+        if full_par.predict.full_p_dist:
+            d_results = []
+            d_name = []
+        else:
+            results_share_cv_log_d = linear_lasso_cv_oos(
+                df=df_merged.filter(pl.col("apply_share") > 0.0),
+                outcome="l_apply_share",
+                predictors=d_predictors,
+                random_state=seed,
+            )
+            d_results = [results_share_cv_log_d]
+            d_name = ["Dummies"]
         results_share_cv_log_train = linear_lasso_cv_oos(
             df=df_merged.filter(pl.col("apply_share") > 0.0).filter(pl.col("training_data") == 1),
             outcome="l_apply_share",
@@ -397,15 +402,15 @@ if __name__ == "__main__":
         }
 
         output_fig = R2_dicts_to_fig(
-            [
-                results_share_cv_log,
-                results_share_cv_log_d,
-                results_share_cv_log_train,
-                results_share_cv_log_train_topics,
-                results_share_cv_log_male,
-                results_share_cv_log_fem,
-            ],
-            row_names=["All", "Dummies","Topic training", "Topic training topics", "Men", "Women"],
+            [results_share_cv_log,
+             results_share_cv_log_train,
+             results_share_cv_log_train_topics,
+             results_share_cv_log_male,
+             results_share_cv_log_fem,
+             *d_results],
+            row_names=["All","Topic training",
+                    "Topic training topics",
+                    "Men", "Women", *d_name],
             columns=columns,
             float_format="%.4f",
         )
