@@ -89,7 +89,7 @@ if __name__ == "__main__":
     stop = par.settings.nobs if par.settings.nobs is not None else len(documents)
     stop = min(stop, len(documents))
 
-    if not par.full_p_dist:
+    if not par.settings.full_p_dist:
         print("Predicting most likely topics...")
         topics = np.array([], dtype=int)
         probs = np.array([], dtype=float)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
         topics_wide = aggregate_predictions_to_ann_level(texts)
 
-    elif par.full_p_dist:
+    elif par.settings.full_p_dist:
         print("Predicting full probability distributions...")
         if par.settings.clustering:
             raise ValueError("Full probability distributions are not compatible with clustering.")  # noqa: TRY003

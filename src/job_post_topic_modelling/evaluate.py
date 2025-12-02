@@ -346,7 +346,7 @@ if __name__ == "__main__":
             predictors=predictors,
             random_state=seed,
         )
-        if full_par.predict.full_p_dist:
+        if full_par.predict.settings.full_p_dist:
             d_results = []
             d_name = []
         else:
