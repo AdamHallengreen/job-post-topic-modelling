@@ -120,7 +120,6 @@ if __name__ == "__main__":
 
         topics_wide = aggregate_predictions_to_ann_level(texts)
 
-
     elif par.full_p_dist:
         print("Predicting full probability distributions...")
         if par.settings.clustering:
@@ -143,15 +142,18 @@ if __name__ == "__main__":
             else:
                 probs = np.vstack([probs, probs_batch])
 
-
-        prob_df = pl.DataFrame(
-            probs,
-            schema=[f"topic_{i-topic_model._outliers}" for i in range(probs.shape[1])],
-        ).with_columns(
-            label = texts["label"]
-        ).with_row_index("row_nr").with_columns(
-            training_data=(pl.col("label").is_not_null() & (pl.col("row_nr") < par_train.settings.nobs)),
-        ).drop("row_nr")
+        prob_df = (
+            pl.DataFrame(
+                probs,
+                schema=[f"topic_{i - topic_model._outliers}" for i in range(probs.shape[1])],
+            )
+            .with_columns(label=texts["label"])
+            .with_row_index("row_nr")
+            .with_columns(
+                training_data=(pl.col("label").is_not_null() & (pl.col("row_nr") < par_train.settings.nobs)),
+            )
+            .drop("row_nr")
+        )
 
         texts = texts.join(prob_df, on="label").with_columns(
             ann_id=c.label.str.extract(r"^(\d+)_s", 1),
@@ -161,13 +163,15 @@ if __name__ == "__main__":
         # Save results
         texts.write_parquet(output_dir / "predicted_topics.parquet")
 
-        topics_wide = texts.group_by('ann_id').agg(
-            *[(pl.lit(1) - (pl.lit(1) - c(f'topic_{ti-topic_model._outliers}')).product()).alias(f"p_topic_{ti}")
-             for ti in range(probs.shape[1])],
-            pl.col("training_data").max()
+        topics_wide = texts.group_by("ann_id").agg(
+            *[
+                (pl.lit(1) - (pl.lit(1) - c(f"topic_{ti - topic_model._outliers}")).product()).alias(
+                    f"p_topic_{ti - topic_model._outliers}"
+                )
+                for ti in range(probs.shape[1])
+            ],
+            pl.col("training_data").max(),
         )
-
-
 
     print("Saving aggregated results...")
     topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")

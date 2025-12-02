@@ -132,24 +132,22 @@ def aggregate_predictions_to_ann_level(df):
         "predicted_topic",
     ).agg(
         (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("p_topic"),
-        (pl.col("topic_probability").max()>0).alias("d_topic"),
+        (pl.col("topic_probability").max() > 0).alias("d_topic"),
         pl.col(
             "training_data"
         ).max(),  # during loading of embeddings, half of one add might have been used for training
     )
     print("Make into wide format")
     topics_wide = (
-        (
-            topics_agg.sort("predicted_topic").pivot(
-                values=["p_topic",'d_topic'],
-                index=["ann_id", "training_data"],
-                on="predicted_topic",
-                aggregate_function=None,
-            )
-        ).with_columns(
-            cs.starts_with('p_topic').fill_null(0.0),
-            cs.starts_with('d_topic').fill_null(False),
+        topics_agg.sort("predicted_topic").pivot(
+            values=["p_topic", "d_topic"],
+            index=["ann_id", "training_data"],
+            on="predicted_topic",
+            aggregate_function=None,
         )
+    ).with_columns(
+        cs.starts_with("p_topic").fill_null(0.0),
+        cs.starts_with("d_topic").fill_null(False),
     )
     return topics_wide
 

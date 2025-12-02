@@ -402,15 +402,15 @@ if __name__ == "__main__":
         }
 
         output_fig = R2_dicts_to_fig(
-            [results_share_cv_log,
-             results_share_cv_log_train,
-             results_share_cv_log_train_topics,
-             results_share_cv_log_male,
-             results_share_cv_log_fem,
-             *d_results],
-            row_names=["All","Topic training",
-                    "Topic training topics",
-                    "Men", "Women", *d_name],
+            [
+                results_share_cv_log,
+                results_share_cv_log_train,
+                results_share_cv_log_train_topics,
+                results_share_cv_log_male,
+                results_share_cv_log_fem,
+                *d_results,
+            ],
+            row_names=["All", "Topic training", "Topic training topics", "Men", "Women", *d_name],
             columns=columns,
             float_format="%.4f",
         )
