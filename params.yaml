@@ -47,6 +47,7 @@ predict:
     nobs: 100000
     clustering: false
     batch_mode: false
+    full_p_dist: False
 evaluate:
   vectorizer:
     model: CountVectorizer

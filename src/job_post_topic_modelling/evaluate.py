@@ -133,6 +133,7 @@ def linear_lasso_cv_oos(
     use_sample_weight=False,
     weight_var="click_count",
     standardize=True,
+    is_sparse=True,
     random_state=123521,
 ):
     """
@@ -158,7 +159,8 @@ def linear_lasso_cv_oos(
     if binary_cut is not None:
         X = (binary_cut <= X).astype(int)
 
-    X = csr_matrix(X)
+    if is_sparse:
+        X = csr_matrix(X)
 
     if standardize:
         scaler = StandardScaler(with_mean=False)
@@ -340,11 +342,14 @@ if __name__ == "__main__":
         predictors = topics.select(cs.starts_with("p_topic_")).columns
         d_predictors = topics.select(cs.starts_with("d_topic_")).columns
 
+        is_sparse = (not full_par.predict.settings.full_p_dist)
+
         results_share_cv_log = linear_lasso_cv_oos(
             df=df_merged.filter(pl.col("apply_share") > 0.0),
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
+            is_sparse=is_sparse,
         )
         if full_par.predict.settings.full_p_dist:
             d_results = []
@@ -355,20 +360,24 @@ if __name__ == "__main__":
                 outcome="l_apply_share",
                 predictors=d_predictors,
                 random_state=seed,
+                is_sparse=True,
             )
             d_results = [results_share_cv_log_d]
             d_name = ["Dummies"]
+
         results_share_cv_log_train = linear_lasso_cv_oos(
             df=df_merged.filter(pl.col("apply_share") > 0.0).filter(pl.col("training_data") == 1),
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
+            is_sparse=is_sparse,
         )
         results_share_cv_log_male = linear_lasso_cv_oos(
             df=df_merged.filter(pl.col("apply_share_male") > 0.0),
             outcome="l_apply_share_male",
             predictors=predictors,
             random_state=seed,
+            is_sparse=is_sparse,
         )
 
         results_share_cv_log_fem = linear_lasso_cv_oos(
@@ -376,6 +385,7 @@ if __name__ == "__main__":
             outcome="l_apply_share_fem",
             predictors=predictors,
             random_state=seed,
+            is_sparse=is_sparse,
         )
 
         print("Calculating for training topics")
@@ -391,6 +401,7 @@ if __name__ == "__main__":
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
+            is_sparse=True,
         )
 
         print("Log Click Share OOS R2:")
