@@ -132,11 +132,19 @@ if __name__ == "__main__":
             batch_embeddings = embeddings[start_idx:end_idx]
             sim_matrix = cosine_similarity(
                 batch_embeddings,
-                np.array(topic_model.topic_embeddings_),
+                np.array(topic_model.topic_embeddings_[1:]), # Exclude topic -1
             )
+
             # Replace negatives with zeros
             sim_matrix[sim_matrix < 0] = 0
             probs_batch = sim_matrix / sim_matrix.sum(axis=1, keepdims=True)
+
+            if par.settings.ignore_limit is not None:
+                print(f'Ignoring sentences with max topic prob < {par.settings.ignore_limit}...')
+                ignore_index = (np.max(sim_matrix,axis=1) < par.settings.ignore_limit)
+                print(f'Number of ignored sentences in this batch: {np.sum(ignore_index)}')
+                probs_batch[ignore_index,:] = 0
+
             if start_idx == 0:  # noqa: SIM108
                 probs = probs_batch
             else:
@@ -145,7 +153,7 @@ if __name__ == "__main__":
         prob_df = (
             pl.DataFrame(
                 probs,
-                schema=[f"topic_{i - topic_model._outliers}" for i in range(probs.shape[1])],
+                schema=[f"topic_{i}" for i in range(probs.shape[1])],
             )
             .with_columns(label=texts["label"])
             .with_row_index("row_nr")
@@ -165,9 +173,8 @@ if __name__ == "__main__":
 
         topics_wide = texts.group_by("ann_id").agg(
             *[
-                (pl.lit(1) - (pl.lit(1) - c(f"topic_{ti - topic_model._outliers}")).product()).alias(
-                    f"p_topic_{ti - topic_model._outliers}"
-                )
+                (pl.lit(1) - (pl.lit(1) - c(f"topic_{ti}")).product()
+                 ).alias(f"p_topic_{ti}")
                 for ti in range(probs.shape[1])
             ],
             pl.col("training_data").max(),
