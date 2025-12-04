@@ -98,7 +98,23 @@ if __name__ == "__main__":
             print(f"Processing documents {start_idx} to {end_idx}...")
             batch_docs = documents[start_idx:end_idx]
             batch_embeddings = embeddings[start_idx:end_idx]
-            batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
+            if par.settings.clustering:
+                batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
+            else:
+                sim_matrix = cosine_similarity(
+                    batch_embeddings,
+                    np.array(topic_model.topic_embeddings_[1:]), # Exclude topic -1
+                )
+
+                batch_topics = np.argmax(sim_matrix, axis=1)
+                batch_probs = np.take_along_axis(sim_matrix,batch_topics[:,None],axis=1)[:,0]
+
+                if par.settings.ignore_limit is not None:
+                    print(f'Ignoring sentences with max topic prob < {par.settings.ignore_limit}...')
+                    ignore_index = (np.max(sim_matrix,axis=1) < par.settings.ignore_limit)
+                    print(f'Number of ignored sentences in this batch: {np.sum(ignore_index)}')
+                    batch_topics[ignore_index] = -1
+                    batch_probs[ignore_index] = 1.0
 
             topics = np.concatenate([topics, batch_topics])
             probs = np.concatenate([probs, batch_probs])
