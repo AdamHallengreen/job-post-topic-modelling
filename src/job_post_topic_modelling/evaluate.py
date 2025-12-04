@@ -122,6 +122,19 @@ def load_click_shares() -> pl.DataFrame:
     click_shares = pl.read_parquet(folder_path / "ads_clicks_agg.parquet")
     return click_shares
 
+def demean(df,var_list,by_var):
+    """
+    Demean variables in var_list by by_var.
+    Simply replaces the variables in var_list with their demeaned versions.
+
+    """
+    group_means = df.group_by(by_var).agg([pl.col(v).mean().alias(f"{v}_mean") for v in var_list])
+    df = df.drop(cs.ends_with('_mean')).join(group_means, on=by_var, how="left")
+
+    df = df.with_columns([(pl.col(v) - pl.col(f"{v}_mean")).alias(v) for v in var_list])
+
+    return df
+
 
 def linear_lasso_cv_oos(
     df,
@@ -145,16 +158,19 @@ def linear_lasso_cv_oos(
 
     # Extract data
     if hasattr(df, "select"):  # Polars
-        X = df.select(predictors).to_numpy()
-        y = df[outcome].to_numpy()
+        na_filter = pl.col(outcome).is_not_null()
+        X = df.filter(na_filter).select(predictors).to_numpy()
+        y = df.filter(na_filter)[outcome].to_numpy()
         if use_sample_weight:
-            w = df[weight_var].to_numpy()
+            w = df.filter(na_filter)[weight_var].to_numpy()
     else:  # Pandas
-        X = df[predictors].to_numpy()
-        y = df[outcome].to_numpy()
+
+        na_filter = df[outcome].notna()
+        X = df.loc[na_filter,predictors].to_numpy()
+        y = df.loc[na_filter,outcome].to_numpy()
 
         if use_sample_weight:
-            w = df[weight_var].to_numpy()
+            w = df.loc[na_filter,weight_var].to_numpy()
 
     if binary_cut is not None:
         X = (binary_cut <= X).astype(int)
@@ -337,26 +353,63 @@ if __name__ == "__main__":
         topics = pl.read_parquet(output_dir / "predicted_topics_agg.parquet")
 
         df_merged = topics.join(click_shares, on="ann_id", how="inner").with_columns(*[
-            pl.col(f"apply_share{suf}").log().alias(f"l_apply_share{suf}") for suf in ["", "_male", "_fem"]
+           pl.when(pl.col(f"apply_share{suf}") == 0)
+            .then(None)  # set zeros to null
+            .otherwise(pl.col(f"apply_share{suf}"))
+            .log()
+            .alias(f"l_apply_share{suf}")
+            for suf in ["", "_male", "_fem"]
         ])
+
         predictors = topics.select(cs.starts_with("p_topic_")).columns
         d_predictors = topics.select(cs.starts_with("d_topic_")).columns
 
         is_sparse = (not full_par.predict.settings.full_p_dist)
 
         results_share_cv_log = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share") > 0.0),
+            df=df_merged,
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
             is_sparse=is_sparse,
         )
+        # residualized by occupation group
+        df_merged_resid_gr = demean(
+            df_merged,
+            var_list=[f"l_apply_share{suf}" for suf in ["", "_male", "_fem"]
+            ] + predictors,
+            by_var='faggrid'
+            )
+        results_share_cv_log_resid_gr = linear_lasso_cv_oos(
+            df=df_merged_resid_gr,
+            outcome="l_apply_share",
+            predictors=predictors,
+            random_state=seed,
+            is_sparse=False,
+        )
+
+        # residualized by occupation area
+        df_merged_resid_omr = demean(
+            df_merged,
+            var_list=[f"l_apply_share{suf}" for suf in ["", "_male", "_fem"]
+            ] + predictors,
+            by_var='fagomrid'
+            )
+        results_share_cv_log_resid_omr = linear_lasso_cv_oos(
+            df=df_merged_resid_omr,
+            outcome="l_apply_share",
+            predictors=predictors,
+            random_state=seed,
+            is_sparse=False,
+        )
+
+
         if full_par.predict.settings.full_p_dist:
             d_results = []
             d_name = []
         else:
             results_share_cv_log_d = linear_lasso_cv_oos(
-                df=df_merged.filter(pl.col("apply_share") > 0.0),
+                df=df_merged,
                 outcome="l_apply_share",
                 predictors=d_predictors,
                 random_state=seed,
@@ -366,14 +419,14 @@ if __name__ == "__main__":
             d_name = ["Dummies"]
 
         results_share_cv_log_train = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share") > 0.0).filter(pl.col("training_data") == 1),
+            df=df_merged.filter(pl.col("training_data") == 1),
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
             is_sparse=is_sparse,
         )
         results_share_cv_log_male = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share_male") > 0.0),
+            df=df_merged,
             outcome="l_apply_share_male",
             predictors=predictors,
             random_state=seed,
@@ -381,7 +434,7 @@ if __name__ == "__main__":
         )
 
         results_share_cv_log_fem = linear_lasso_cv_oos(
-            df=df_merged.filter(pl.col("apply_share_fem") > 0.0),
+            df=df_merged,
             outcome="l_apply_share_fem",
             predictors=predictors,
             random_state=seed,
@@ -397,7 +450,7 @@ if __name__ == "__main__":
         predictors = topics_train.select(cs.starts_with("p_topic_")).columns
 
         results_share_cv_log_train_topics = linear_lasso_cv_oos(
-            df=df_merged_train.filter(pl.col("apply_share") > 0.0),
+            df=df_merged_train,
             outcome="l_apply_share",
             predictors=predictors,
             random_state=seed,
@@ -415,13 +468,15 @@ if __name__ == "__main__":
         output_fig = R2_dicts_to_fig(
             [
                 results_share_cv_log,
+                results_share_cv_log_resid_gr,
+                results_share_cv_log_resid_omr,
                 results_share_cv_log_train,
                 results_share_cv_log_train_topics,
                 results_share_cv_log_male,
                 results_share_cv_log_fem,
                 *d_results,
             ],
-            row_names=["All", "Topic training", "Topic training topics", "Men", "Women", *d_name],
+            row_names=["All", "Residualized by group","Residualized by area","Topic training", "Topic training topics", "Men", "Women", *d_name],
             columns=columns,
             float_format="%.4f",
         )
