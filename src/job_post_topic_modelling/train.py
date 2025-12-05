@@ -20,7 +20,7 @@ from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
-from job_post_topic_modelling.embed import get_embedding_model_name
+from job_post_topic_modelling.embed import get_embedding_model_name, get_embedding_model
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
@@ -100,17 +100,8 @@ def get_clustering_model(par: OmegaConf):
         raise UnknownModelError(par.clustering.model)
     return clustering_model
 
-
-def get_embedding_model_cpu(embedding_model_name: str):
-    """
-    Get the embedding model name, checking if running on STATA server.
-    This is because the star server needs a local path
-    """
-    return SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
-
-
 def load_model_objects(par, embedding_model_name, embeddings, stop_words):
-    embedding_model = get_embedding_model_cpu(embedding_model_name)
+    embedding_model = get_embedding_model(embedding_model_name)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
 
