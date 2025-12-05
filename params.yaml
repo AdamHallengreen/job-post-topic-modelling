@@ -22,7 +22,7 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
-    nobs: 50000
+    nobs: 1000000
   seed_topics:
     seeds: null
   dimensionality_reduction:
@@ -33,22 +33,22 @@ train:
     metric: cosine
     random_state: null
     low_memory: true
-    use_cuml: True
+    use_cuml: false
   clustering:
     model: HDBSCAN
-    min_cluster_size: 100
-    min_samples: 50
+    min_cluster_size: 1000
+    min_samples: 500
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
-    use_cuml: True
+    use_cuml: false
 predict:
   settings:
-    nobs: 100000
+    nobs: 2000000
     clustering: false
     batch_mode: false
-    full_p_dist: False
-    ignore_limit: None
+    full_p_dist: false
+    ignore_limit: 0.5
 evaluate:
   vectorizer:
     model: CountVectorizer

@@ -14,13 +14,12 @@ from cuml.manifold import UMAP as cumlUMAP
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
 from polars import col as c
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
-from job_post_topic_modelling.embed import get_embedding_model_name, get_embedding_model
+from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
@@ -99,6 +98,7 @@ def get_clustering_model(par: OmegaConf):
     else:
         raise UnknownModelError(par.clustering.model)
     return clustering_model
+
 
 def load_model_objects(par, embedding_model_name, embeddings, stop_words):
     embedding_model = get_embedding_model(embedding_model_name)
