@@ -352,14 +352,17 @@ if __name__ == "__main__":
         click_shares = load_click_shares()
         topics = pl.read_parquet(output_dir / "predicted_topics_agg.parquet")
 
-        df_merged = topics.join(click_shares, on="ann_id", how="inner").with_columns(*[
+
+        log_shares = [
            pl.when(pl.col(f"apply_share{suf}") == 0)
             .then(None)  # set zeros to null
             .otherwise(pl.col(f"apply_share{suf}"))
             .log()
             .alias(f"l_apply_share{suf}")
             for suf in ["", "_male", "_fem"]
-        ])
+        ]
+        df_merged = topics.join(click_shares, on="ann_id", how="inner"
+                    ).with_columns(*log_shares)
 
         predictors = topics.select(cs.starts_with("p_topic_")).columns
         d_predictors = topics.select(cs.starts_with("d_topic_")).columns
@@ -373,6 +376,8 @@ if __name__ == "__main__":
             random_state=seed,
             is_sparse=is_sparse,
         )
+
+
         # residualized by occupation group
         df_merged_resid_gr = demean(
             df_merged,
@@ -444,9 +449,9 @@ if __name__ == "__main__":
         print("Calculating for training topics")
         topics_train = pl.read_parquet(output_dir / "predicted_topics_agg_train.parquet")
 
-        df_merged_train = topics_train.join(click_shares, on="ann_id", how="inner").with_columns(*[
-            pl.col(f"apply_share{suf}").log().alias(f"l_apply_share{suf}") for suf in ["", "_male", "_fem"]
-        ])
+        df_merged_train = topics_train.join(click_shares, on="ann_id",
+                            how="inner").with_columns(*log_shares)
+
         predictors = topics_train.select(cs.starts_with("p_topic_")).columns
 
         results_share_cv_log_train_topics = linear_lasso_cv_oos(
