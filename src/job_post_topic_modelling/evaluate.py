@@ -318,16 +318,19 @@ if __name__ == "__main__":
 
     topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
 
-    print("Updating topic representation...")
-    topic_model.update_topics(
-        documents[: par_train.settings.nobs],
-        vectorizer_model=vectorizer_model,
-        ctfidf_model=ctfidf_model,
-        representation_model=representation_model,
-    )
+    if par.settings.update_topics:
+        print("Updating topic representation...")
+        topic_model.update_topics(
+            documents[: par_train.settings.nobs],
+            vectorizer_model=vectorizer_model,
+            ctfidf_model=ctfidf_model,
+            representation_model=representation_model,
+        )
+    else:
+        print("Skipping topic representation update...")
 
     # Save model
-    print("Saving model with updated topic representation...")
+    print("Saving model with topic representation...")
     topic_model.save(
         output_dir / "bertopic_model_representation",
         serialization="safetensors",
