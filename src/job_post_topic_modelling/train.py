@@ -210,7 +210,7 @@ if __name__ == "__main__":
         models_dir / "bertopic_model",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
-        save_embedding_model=get_embedding_model_name(embedding_model_name),
+        save_embedding_model=False,
     )
     print("Saving sub models ... ")
     pickle.dump(topic_model.umap_model, open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "wb"))  # noqa: SIM115
