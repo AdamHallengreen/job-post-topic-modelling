@@ -7,6 +7,7 @@ defaults:
   - train/seed_topics: blank
   - train/dimensionality_reduction: UMAP
   - train/clustering: HDBSCAN
+  - predict/settings: default
   - evaluate/vectorizer: CountVectorizer
   - evaluate/c_TF_IDF: c_TF_IDF
   - evaluate/representation: MMR

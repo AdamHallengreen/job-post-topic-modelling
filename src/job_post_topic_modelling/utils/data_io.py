@@ -29,12 +29,13 @@ def load_pretrained_embeddings(filepath: Path | str, nobs=None):
     filepath = Path(filepath)
 
     all_embeddings = []
-    shard_files = sorted(filepath.glob("embeddings_shard_*.npy"))
+    shard_files = sorted(filepath.glob("embeddings_shard_*.npy"))  # sorted sorts 1 10 11 ... not 1 2 3
     shards = len(shard_files)
     shards_loaded = 0
     total_obs = 0
 
-    for shard_file in shard_files:
+    for shard_i in range(1, shards + 1):
+        shard_file = filepath / f"embeddings_shard_{shard_i}.npy"
         shard_embeddings = np.load(shard_file)
         all_embeddings.append(shard_embeddings)
         total_obs += shard_embeddings.shape[0]

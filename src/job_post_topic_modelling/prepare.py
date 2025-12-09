@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import time
@@ -5,7 +6,6 @@ from pathlib import Path
 
 # For plotting
 import polars as pl
-from dvclive import Live
 from lingua import LanguageDetectorBuilder
 from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
@@ -16,8 +16,8 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 try_inter()
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
-# Check if running on STATA server, if yes set up path to load nltk data
-if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling"]:
+# Check if running on STAR server, if yes set up path to load nltk data
+if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling", "job_rapids313"]:
     user = os.popen("whoami").read().strip()  # noqa: S605, S607
     import nltk  # type: ignore  # noqa: PGH003
 
@@ -320,6 +320,7 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.prepare
+
     # Process
     print(f"Starting {Path(__file__).name}")
     start = time.time()
@@ -362,10 +363,9 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics using DVCLive
-    with Live(dir=str(output_dir), cache_images=True, resume=True) as live:
-        # Log metrics
-        live.log_metric(f"{Path(__file__).name}", f"{hours:.2f} hours", plot=False)
+    # Save metrics
+    with ((output_dir / "metrics") / "prepare.json").open("w") as f:
+        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
 
     if False:  # For debugging purposes
         text_org = load_data(file_path, par)

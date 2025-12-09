@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: 100000
+    nobs: 30000
     split_paragraphs: true
     split_sentences: true
   star:
@@ -8,14 +8,14 @@ prepare:
 embed:
   settings:
     show_progress_bar: true
-    batch_size: 256
-    device: cpu
+    batch_size: 64
+    device: null
     num_workers: 1
-    shard_size: 1000000
+    shard_size: 50000
   model:
-    embedding_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
     use_model2vec: false
-    pca_dims: 384
+    pca_dims: 768
 train:
   settings:
     top_n_words: 20
@@ -39,7 +39,14 @@ train:
     min_samples: 500
     metric: euclidean
     cluster_selection_method: leaf
-    prediction_data: false
+    prediction_data: true
+predict:
+  settings:
+    nobs: 2000000
+    clustering: false
+    batch_mode: false
+    full_p_dist: false
+    ignore_limit: 0.5
 evaluate:
   vectorizer:
     model: CountVectorizer
@@ -51,7 +58,7 @@ evaluate:
   c_TF_IDF:
     model: c_TF_IDF
     bm25_weighting: false
-    reduce_frequent_words: true
+    reduce_frequent_words: false
   representation:
     model: MMR
     diversity: 0.2
