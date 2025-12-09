@@ -4,4 +4,3 @@ min_samples: 500
 metric: euclidean
 cluster_selection_method: leaf
 prediction_data: True
-use_cuml: False

@@ -5,4 +5,4 @@ min_dist: 0.0
 metric: cosine
 random_state:
 low_memory: True
-use_cuml: False
+

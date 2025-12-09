@@ -67,7 +67,7 @@ To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookie
 
 ## Notes about working on the star server
 
-The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by
+The conda environment jobpost_rapids313 with cuml for using gpu supported versions of hdbscan and umap is installed by (we no longer actually use the gpu supported versions, but this was how the environment was created)
 ```
 conda create -n job_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=12.8'
 ```
