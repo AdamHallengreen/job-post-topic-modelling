@@ -65,3 +65,4 @@ evaluate:
   settings:
     similarity_phrase: fleksibel
     top_n: 8
+    update_topics: false

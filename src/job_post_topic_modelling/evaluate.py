@@ -9,15 +9,14 @@ import polars.selectors as cs
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
-
-
-#from celer import LassoCV
-from sklearn.linear_model import LassoCV
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer
+
+# from celer import LassoCV
+from sklearn.linear_model import LassoCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import StandardScaler
