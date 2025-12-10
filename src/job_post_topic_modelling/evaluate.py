@@ -10,8 +10,9 @@ from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
 
-# from sklearn.linear_model import LassoCV
-from celer import LassoCV
+
+#from celer import LassoCV
+from sklearn.linear_model import LassoCV
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
@@ -272,7 +273,7 @@ def R2_dicts_to_fig(
             output_text += f"#   {label}: {value_str}\n"
         output_text += "\n"
 
-    fig = plt.figure(figsize=(8, 10))
+    fig = plt.figure(figsize=(10, 12))
     plt.text(0.01, 0.99, output_text, fontsize=14, family="monospace", va="top", ha="left", wrap=True)
     plt.axis("off")
 
