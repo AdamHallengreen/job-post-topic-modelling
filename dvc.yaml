@@ -25,7 +25,13 @@ stages:
     - data/embeddings/
     - output/metrics/embed.json
   train:
-    cmd: python src/job_post_topic_modelling/train.py
+    cmd: >
+      POLARS_MAX_THREADS=8
+      OMP_NUM_THREADS=8
+      MKL_NUM_THREADS=8
+      OPENBLAS_NUM_THREADS=8
+      NUMEXPR_NUM_THREADS=8
+      python src/job_post_topic_modelling/train.py
     deps:
     - data/texts.parquet
     - data/embeddings/
@@ -47,7 +53,13 @@ stages:
     - output/predicted_topics_agg_train.parquet
     - output/metrics/train.json
   predict:
-    cmd: python src/job_post_topic_modelling/predict.py
+    cmd: >
+      POLARS_MAX_THREADS=8
+      OMP_NUM_THREADS=8
+      MKL_NUM_THREADS=8
+      OPENBLAS_NUM_THREADS=8
+      NUMEXPR_NUM_THREADS=8
+      python src/job_post_topic_modelling/predict.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
@@ -69,11 +81,11 @@ stages:
     - output/metrics/predict.json
   evaluate:
     cmd: >
-      POLARS_MAX_THREADS=4
-      OMP_NUM_THREADS=1
-      MKL_NUM_THREADS=1
-      OPENBLAS_NUM_THREADS=1
-      NUMEXPR_NUM_THREADS=1
+      POLARS_MAX_THREADS=8
+      OMP_NUM_THREADS=8
+      MKL_NUM_THREADS=8
+      OPENBLAS_NUM_THREADS=8
+      NUMEXPR_NUM_THREADS=8
       python src/job_post_topic_modelling/evaluate.py
     deps:
     - models/bertopic_model/config.json
