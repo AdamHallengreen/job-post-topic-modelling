@@ -198,7 +198,7 @@ def linear_lasso_cv_oos(
     model = LassoCV(
         cv=KFold(n_splits=n_folds, shuffle=True, random_state=random_state),
         max_iter=5000,
-        n_jobs=10,
+        n_jobs=4,
     )
     model.fit(X_train, y_train, sample_weight=w_train)
 

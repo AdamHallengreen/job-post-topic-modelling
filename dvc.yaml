@@ -68,7 +68,13 @@ stages:
     - output/predicted_topics_agg.parquet
     - output/metrics/predict.json
   evaluate:
-    cmd: python src/job_post_topic_modelling/evaluate.py
+    cmd: >
+      POLARS_MAX_THREADS=4
+      OMP_NUM_THREADS=1
+      MKL_NUM_THREADS=1
+      OPENBLAS_NUM_THREADS=1
+      NUMEXPR_NUM_THREADS=1
+      python src/job_post_topic_modelling/evaluate.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
