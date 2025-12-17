@@ -5,3 +5,4 @@ min_dist: 0.0
 metric: cosine
 random_state:
 low_memory: True
+n_jobs: 16
