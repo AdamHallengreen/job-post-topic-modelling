@@ -4,3 +4,4 @@ min_samples: 500
 metric: euclidean
 cluster_selection_method: leaf
 prediction_data: True
+core_dist_n_jobs: 8

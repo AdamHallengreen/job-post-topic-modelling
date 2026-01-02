@@ -1,2 +1,4 @@
 [hydra]
     enabled = True
+[cache]
+    dir = /data/projects/klikdata/Asker/job-post-topic-modelling/cache/

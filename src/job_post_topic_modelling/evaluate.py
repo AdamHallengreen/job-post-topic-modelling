@@ -9,14 +9,14 @@ import polars.selectors as cs
 from bertopic import BERTopic
 from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
-
-# from sklearn.linear_model import LassoCV
-from celer import LassoCV
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer
+
+# from celer import LassoCV
+from sklearn.linear_model import LassoCV
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
-from job_post_topic_modelling.embed import get_embedding_model_name  # noqa: E402
+from job_post_topic_modelling.embed import get_embedding_model_name, get_embedding_model  # noqa: E402
 from job_post_topic_modelling.train import get_embedding_model_cpu, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
@@ -198,7 +198,7 @@ def linear_lasso_cv_oos(
     model = LassoCV(
         cv=KFold(n_splits=n_folds, shuffle=True, random_state=random_state),
         max_iter=5000,
-        n_jobs=10,
+        n_jobs=4,
     )
     model.fit(X_train, y_train, sample_weight=w_train)
 
@@ -272,7 +272,7 @@ def R2_dicts_to_fig(
             output_text += f"#   {label}: {value_str}\n"
         output_text += "\n"
 
-    fig = plt.figure(figsize=(8, 10))
+    fig = plt.figure(figsize=(10, 12))
     plt.text(0.01, 0.99, output_text, fontsize=14, family="monospace", va="top", ha="left", wrap=True)
     plt.axis("off")
 
@@ -310,7 +310,10 @@ if __name__ == "__main__":
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
-    embedding_model = get_embedding_model_cpu(embedding_model_name)
+    if par.settings.use_cpu:
+        embedding_model = get_embedding_model_cpu(embedding_model_name)
+    else:
+        embedding_model = get_embedding_model(embedding_model_name)
 
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
