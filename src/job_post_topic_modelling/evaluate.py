@@ -24,7 +24,7 @@ from sklearn.preprocessing import StandardScaler
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
-from job_post_topic_modelling.embed import get_embedding_model_name, get_embedding_model  # noqa: E402
+from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name  # noqa: E402
 from job_post_topic_modelling.train import get_embedding_model_cpu, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
