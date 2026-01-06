@@ -108,6 +108,7 @@ stages:
     - evaluate
     outs:
     - output/topic_info.csv
+    - output/topic_info.parquet
     - output/bertopic_model_representation
     always_changed: true
 metrics:

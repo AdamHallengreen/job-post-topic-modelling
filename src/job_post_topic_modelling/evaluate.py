@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import polars as pl
 import polars.selectors as cs
 from bertopic import BERTopic
@@ -58,6 +59,34 @@ def load_model(model_path: str | Path) -> object:
     return BERTopic.load(model_path)
 
 
+def add_representative_docs(
+    topic_model: BERTopic, documents: list[str], nr_samples: int = 2000, nr_repr_docs: int = 5
+) -> None:
+    """
+    Add representative documents to a BERTopic topic_model.
+
+    Args:
+        topic_model (BERTopic): The BERTopic topic_model.
+        documents (list[str]): List of documents used for topic topic_modeling.
+
+    Returns:
+        None
+    """
+    docs_df = pd.DataFrame({
+        "Document": documents[: len(topic_model.topics_)],
+        "Topic": topic_model.topics_,
+        "ID": range(len(topic_model.topics_)),
+    })
+
+    topic_model.representative_docs_, _, _, _ = topic_model._extract_representative_docs(
+        topic_model.c_tf_idf_,
+        docs_df,
+        topic_model.topic_representations_,
+        nr_samples=nr_samples,
+        nr_repr_docs=nr_repr_docs,
+    )
+
+
 def create_top_words_fig(model) -> Figure:
     """
     Create a picture of  string with the top words for each topic.
@@ -97,7 +126,7 @@ def get_representation_model(par: OmegaConf):
     args = {k: v for k, v in par.representation.items() if k != "model"}
     if par.representation.model == "KeyBERTInspired":
         representation_model = KeyBERTInspired(**args)
-    if par.representation.model == "MMR":
+    elif par.representation.model == "MMR":
         representation_model = MaximalMarginalRelevance(**args)
     else:
         raise UnknownModelError(par.representation.model)
@@ -317,20 +346,44 @@ if __name__ == "__main__":
 
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
+
     vectorizer_model = get_vectorizer(par, stop_words=stop_words)
 
     topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
 
     if par.settings.update_topics:
         print("Updating topic representation...")
+
+        # add additional representation models
+        representation_model_dict = {
+            "Main": representation_model,
+            "MMR05": MaximalMarginalRelevance(diversity=0.5),
+            "MMR08": MaximalMarginalRelevance(diversity=0.8),
+            "keybert": KeyBERTInspired(),
+            "B30_MMR05": [KeyBERTInspired(top_n_words=30), MaximalMarginalRelevance(diversity=0.5)],
+            "B50_MMR05": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.5)],
+            "B50_MMR08": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.8)],
+            "B50_MMR02": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.2)],
+        }
+
         topic_model.update_topics(
             documents[: par_train.settings.nobs],
             vectorizer_model=vectorizer_model,
             ctfidf_model=ctfidf_model,
-            representation_model=representation_model,
+            representation_model=representation_model_dict,
         )
+        print("Adding representative documents...")
+        add_representative_docs(
+            topic_model,
+            documents,
+        )
+
     else:
         print("Skipping topic representation update...")
+
+    print("Saving topic info to parquet...")
+    df_topic_info = topic_model.get_topic_info()
+    pl.from_pandas(df_topic_info).write_parquet(output_dir / "topic_info.parquet")
 
     # Save model
     print("Saving model with topic representation...")
@@ -354,7 +407,7 @@ if __name__ == "__main__":
                 live.log_metric(key, value, plot=False)
 
     # If running on star data calculate out-of-sample prediction of click-shares
-    if full_par.prepare.star.usestar == 1:
+    if (full_par.prepare.star.usestar == 1) and par.settings.oos_prediction:
         print("Calculating out-of-sample prediction of click-shares...")
         click_shares = load_click_shares()
         topics = pl.read_parquet(output_dir / "predicted_topics_agg.parquet")
