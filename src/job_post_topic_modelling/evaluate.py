@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import pandas as pd
 import polars as pl
 import polars.selectors as cs
 from bertopic import BERTopic
@@ -72,11 +71,11 @@ def add_representative_docs(
     Returns:
         None
     """
-    docs_df = pd.DataFrame({
+    docs_df = pl.DataFrame({
         "Document": documents[: len(topic_model.topics_)],
         "Topic": topic_model.topics_,
         "ID": range(len(topic_model.topics_)),
-    })
+    }).to_pandas()
 
     topic_model.representative_docs_, _, _, _ = topic_model._extract_representative_docs(
         topic_model.c_tf_idf_,
