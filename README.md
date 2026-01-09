@@ -72,17 +72,7 @@ The conda environment jobpost_rapids313 with cuml for using gpu supported versio
 conda create -n job_rapids313 -c rapidsai -c conda-forge -c nvidia rapids=25.10 python=3.13 'cuda-version=12.8'
 ```
 I choose cuda-version 12.8 because it matches the one pytorch loads automatically
-The environment can then be used to install the packages in a given environment using pip. However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
-And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
-Other data for packages have to manually loaded (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
-It is the loaded at the begining of prepare (you might have to adjust the path)
-
-I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
-\# Make sure hf CLI is installed: `pip install -U "huggingface_hub[cli]`
-`hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2`
-`hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
-
+The environment can then be used to install the packages in a given environment using pip.
 
 On the star server uv doesn't work. But instead, you can (from a computer where it does work) create a requirement.txt file using:
 
@@ -96,6 +86,13 @@ Then use the following pip command to install them:
 pip install -r requirements.txt
 ```
 
+You also need to tell the environment that job-post-nlp is a package, by running:
+
+```
+python -m pip install -e .
+```
+
+
 Downgrade kaleido so you don't need chrom (which needs the internet):
 ```
 pip uninstall -y kaleido plotly
@@ -103,12 +100,61 @@ pip install "kaleido==0.2.1" "plotly<6"
 ```
 
 
+ However, some packages that are installed from the web, like: `da-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/da_core_news_sm-3.8.0/da_core_news_sm-3.8.0-py3-none-any.whl`
+And they need to be removed manually. This specific package can be loaded from conda using `conda install spacy-model-da_core_web_sm`. (Not relevant anymore).
+Other data for packages have to manually loaded (as a zip file ) like punkt_tab from nlkt (https://www.nltk.org/data.html)
+It is the loaded at the begining of prepare (you might have to adjust the path)
+
+I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on huggingface (`https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2/tree/main?clone=true`) in a off-server terminal:
+\# Make sure hf CLI is installed: `pip install -U "huggingface_hub[cli]`
+`hf download sentence-transformers/paraphrase-multilingual-mpnet-base-v2`
+`hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
+
+NEW:
+pip install ctransformers[cuda]
+
+install mistral model: 
+hf download bartowski/Mistral-7B-Instruct-v0.3-GGUF --include "Mistral-7B-Instruct-v0.3-Q6_K.gguf"
+
+
+download tokenizer (not used):
+hf download mistralai/Mistral-7B-Instruct-v0.3 --local-dir H:\jobads\installation\tokenizer --include "tokenizer.*" "tokenizer.model.v3" "tokenizer_config.json" "special_tokens_map.json"
+
+
+
+
+conda create -n topicmodel312_1 python=3.12 pip -y
+conda activate topicmodel312_1
+
+pip install --no-binary=ctransformers ctransformers
+pip install protobuf
+
+On the star server uv doesn't work. But instead, you can (from a computer where it does work) create a requirement.txt file using:
+
+```
+uv export --no-emit-workspace --no-dev --no-annotate --no-header --no-hashes --output-file requirements.txt
+```
+
+Then use the following pip command to install them:
+
+```
+pip install -r requirements.txt
+```
 You also need to tell the environment that job-post-nlp is a package, by running:
 
 ```
 python -m pip install -e .
 ```
 
+Downgrade kaleido so you don't need chrom (which needs the internet):
+```
+pip uninstall -y kaleido plotly
+pip install "kaleido==0.2.1" "plotly<6"
+```
+
+
+ls -lh /home/b281467@PROD.SITAD.DK/code/help/installations/llama_cpp_wheels | grep -i llama
 I also had some issues where I had to force a reinstall of spacy-loggers
 
 Since uv doesn't work I've also install precommit:
