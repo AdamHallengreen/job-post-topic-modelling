@@ -64,6 +64,20 @@ evaluate:
   representation:
     model: MMR
     diversity: 0.2
+  label_llm:
+    use_llm: true
+    model: "Mistral-7B-Instruct-v0.3-Q6_K.gguf"
+    model_folder: "Mistral-7B-Instruct-v0.3-GGUF"
+    gpu_layers: 0
+    model_type: "mistral"
+    use_representative_docs: true
+    nr_representative_docs: 3
+    top_n_words: 10
+    gen_kwargs:
+      max_new_tokens: 16
+      temperature: 0.1
+      top_p: 0.95
+      repetition_penalty: 1.1
   settings:
     similarity_phrase: fleksibel
     top_n: 8

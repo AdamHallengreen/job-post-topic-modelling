@@ -111,12 +111,14 @@ I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on 
 `hf download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
-NEW:
-pip install ctransformers[cuda]
 
 install mistral model: 
+smaller:
 hf download bartowski/Mistral-7B-Instruct-v0.3-GGUF --include "Mistral-7B-Instruct-v0.3-Q6_K.gguf"
 
+larger:
+Just downloaded the Q8_0 version from:
+https://huggingface.co/mistralai/Ministral-3-14B-Instruct-2512-GGUF
 
 download tokenizer (not used):
 hf download mistralai/Mistral-7B-Instruct-v0.3 --local-dir H:\jobads\installation\tokenizer --include "tokenizer.*" "tokenizer.model.v3" "tokenizer_config.json" "special_tokens_map.json"

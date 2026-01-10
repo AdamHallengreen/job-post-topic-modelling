@@ -1,7 +1,9 @@
 import json
 import os
 import time
+import re
 from pathlib import Path
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import polars as pl
@@ -14,6 +16,7 @@ from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer
+from ctransformers import AutoModelForCausalLM
 
 # from celer import LassoCV
 from sklearn.linear_model import LassoCV
@@ -32,6 +35,8 @@ from job_post_topic_modelling.utils.data_io import (  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
 
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 class InvalidInputFileError(Exception):
     def __init__(self) -> None:
@@ -306,6 +311,95 @@ def R2_dicts_to_fig(
 
     return fig
 
+def _clean_label(text: str) -> str:
+    text = (text or "").strip()
+    # Keep first line only
+    text = text.splitlines()[0].strip()
+    # Strip surrounding quotes
+    text = re.sub(r'^\s*["“”\']+|["“”\']+\s*$', "", text).strip()
+    # stip surrounding - _ 
+    text = re.sub(r"^\s*[-_]+|[-_]+\s*$", "", text).strip()
+    # Collapse whitespace
+    text = re.sub(r"\s+", " ", text)
+    # remove commas and decimals points
+    text = re.sub(r"[,\.]", "", text)
+    # replace space and - with underscore
+    text = re.sub(r"[\s\-]+", "_", text)
+    return text
+
+def label_topics_with_ctransformers(
+    topic_model,
+    llm,  # your ctransformers model (callable: llm(prompt, **gen_kwargs))
+    prompt_template: str,
+    top_n_words: int = 10,
+    use_docs: bool = True,
+    nr_docs: int = 3,
+    gen_kwargs: Optional[dict] = None,
+) -> dict[int, str]:
+    """
+    Returns: {topic_id: "Nice Danish label"}
+    """
+    gen_kwargs = gen_kwargs or {
+        "max_new_tokens": 16,
+        "temperature": 0.1,
+        "top_p": 0.95,
+        "repetition_penalty": 1.1,
+    }
+
+    labels: dict[int, str] = {}
+    print('Generating topic labels...')
+    # Iterate topics (skip outlier topic -1)
+    for topic_id in sorted(topic_model.get_topics().keys()):
+        if topic_id == -1:
+            continue
+
+        # Keywords
+        kw = [w for w, _ in topic_model.get_topic(topic_id)[:top_n_words]]
+        keywords = ", ".join(kw)
+
+        # Representative docs (optional; API differs a bit across versions)
+        docs_block = ""
+        if use_docs:
+            docs: list[str] = []
+            try:
+                docs = topic_model.get_representative_docs(topic=topic_id)  # common signature
+            except TypeError:
+                try:
+                    docs = topic_model.get_representative_docs(topic_id)  # older signature
+                except Exception:
+                    docs = []
+            except Exception:
+                docs = []
+
+            docs = (docs or [])[:nr_docs]
+            if docs:
+                docs_block = "\n".join([f"- {d[:400].replace('\\n',' ')}" for d in docs])
+
+        prompt = (
+            prompt_template
+            .replace("[KEYWORDS]", keywords)
+            .replace("[DOCUMENTS]", docs_block)
+        )
+        # Generate
+        out = llm(prompt, **gen_kwargs)
+        label = _clean_label(out)
+        if True:
+            print('---')
+            print(f'Topic: {topic_id}')
+            print('Prompt:')
+            print(prompt)
+            print('LLM output:')
+            print(out)
+            print(f'Cleaned label: {label}')
+
+        # Fallback if model returns nothing useful
+        if not label:
+            label = " ".join(kw[:3])
+
+        labels[topic_id] = label
+
+    return labels
+
 
 if __name__ == "__main__":
     # Define file paths
@@ -314,6 +408,7 @@ if __name__ == "__main__":
     models_dir = project_root / "models"
     output_dir = project_root / "output"
     params_path = project_root / "params.yaml"
+
     seed = 1230532
     # Load parameters
     full_par = OmegaConf.load(params_path)
@@ -376,12 +471,47 @@ if __name__ == "__main__":
             topic_model,
             documents,
         )
-
     else:
         print("Skipping topic representation update...")
 
-    print("Saving topic info to parquet...")
     df_topic_info = topic_model.get_topic_info()
+    if par.label_llm.use_llm:
+        user = os.popen("whoami").read().strip()  # noqa: S605, S607
+        llm_path = Path(rf'/home/{user}@PROD.SITAD.DK/code/help/installations')
+        print("Loading ctransformers model for topic labeling...")
+        llm = AutoModelForCausalLM.from_pretrained(
+            str(llm_path/par.label_llm.model_folder),
+            model_file=par.label_llm.model,
+            model_type=par.label_llm.model_type,
+            gpu_layers=par.label_llm.gpu_layers,
+            hf=False
+        )
+        prompt_template = """
+        Du hjælper med at give korte emne-labels på dansk til emner fra BERTOPIC.
+
+        Eksempler på dokumenter i emnet:
+        [DOCUMENTS]
+
+        Nøgleord i emnet: [KEYWORDS]
+
+        Returnér KUN en kort etiket (1-3 ord). Ingen ekstra tekst, ingen citationstegn.
+        """
+
+        print('Labeling topics with LLM...')
+        labels = label_topics_with_ctransformers(
+            topic_model=topic_model,
+            llm=llm,  # your ctransformers model object
+            prompt_template=prompt_template,
+            top_n_words=par.label_llm.top_n_words,
+            use_docs=par.label_llm.use_representative_docs,
+            nr_docs=par.label_llm.nr_representative_docs,
+            gen_kwargs=par.label_llm.gen_kwargs,
+        )
+
+        print("Updating topic info with new labels...")
+        df_topic_info['llm_label'] = df_topic_info['Topic'].map(lambda x: labels.get(x, "outlier"))
+
+    print("Saving topic info to parquet...")
     pl.from_pandas(df_topic_info).write_parquet(output_dir / "topic_info.parquet")
 
     # Save model
