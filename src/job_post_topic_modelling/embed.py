@@ -19,7 +19,7 @@ def get_embedding_model_name(embedding_model_name: str):
     This is because the star server needs a local path
     """
 
-    #When running on STAR server, set up path to load the correct SentenceTransformer
+    # When running on STAR server, set up path to load the correct SentenceTransformer
 
     user = os.popen("whoami").read().strip()  # noqa: S605, S607
     # Optional: force strict offline behavior

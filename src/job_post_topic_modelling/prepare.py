@@ -19,7 +19,7 @@ from job_post_topic_modelling.utils.find_project_root import find_project_root  
 # Check if running on STAR server, if yes set up path to load nltk data
 
 user = os.popen("whoami").read().strip()  # noqa: S605, S607
-import nltk  # type: ignore  # noqa: PGH003
+import nltk  # type: ignore  # noqa: PGH003 E402
 
 nltk.data.path.append(rf"/home/{user}@PROD.SITAD.DK/code/help/installations/nltk_data")
 
