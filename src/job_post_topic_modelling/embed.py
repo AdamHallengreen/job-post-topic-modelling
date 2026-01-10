@@ -19,21 +19,19 @@ def get_embedding_model_name(embedding_model_name: str):
     This is because the star server needs a local path
     """
 
-    # Check if running on STATA server, if yes set up path to load the correct SentenceTransformer
-    if os.environ.get("CONDA_DEFAULT_ENV") in ["job_post_topic_modelling", "job_rapids313",'topicmodel312_1']:
-        user = os.popen("whoami").read().strip()  # noqa: S605, S607
-        # Optional: force strict offline behavior
-        os.environ["HF_HUB_OFFLINE"] = "1"
-        os.environ["TRANSFORMERS_OFFLINE"] = "1"
-        if embedding_model_name in [
-            "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        ]:
-            pref = rf"/home/{user}@PROD.SITAD.DK/code/help/installations/"
-        else:
-            raise ValueError(f"Model {embedding_model_name} not recognized in STATA server setup.")  # noqa: TRY003
+    #When running on STAR server, set up path to load the correct SentenceTransformer
+
+    user = os.popen("whoami").read().strip()  # noqa: S605, S607
+    # Optional: force strict offline behavior
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    if embedding_model_name in [
+        "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    ]:
+        pref = rf"/home/{user}@PROD.SITAD.DK/code/help/installations/"
     else:
-        pref = ""
+        raise ValueError(f"Model {embedding_model_name} not recognized in STATA server setup.")  # noqa: TRY003
     return pref + embedding_model_name
 
 
