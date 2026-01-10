@@ -382,7 +382,7 @@ def label_topics_with_ctransformers(
     """
     gen_kwargs = gen_kwargs or dict(
         max_new_tokens=16,
-        temperature=0.2,
+        temperature=0.1,
         top_p=0.95,
         repetition_penalty=1.1,
     )
