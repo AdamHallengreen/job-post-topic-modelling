@@ -112,7 +112,7 @@ I also had to download paraphrase-multilingual-mpnet-base-v2 using the guide on 
 It is then located in the cache stated by the terminal (use the one in the snapshots folder) and can be transfered to the server.
 
 
-install mistral model: 
+install mistral model:
 smaller:
 hf download bartowski/Mistral-7B-Instruct-v0.3-GGUF --include "Mistral-7B-Instruct-v0.3-Q6_K.gguf"
 
