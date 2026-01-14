@@ -1,0 +1,13 @@
+use_llm: true
+model: "Ministral-3-14B-Instruct-2512-Q8_0.gguf"
+model_folder: "Ministral-3-14B-Instruct-2512-GGUF"
+gpu_layers: 0
+model_type: "mistral"
+use_representative_docs: true
+nr_representative_docs: 5
+top_n_words: 10
+gen_kwargs:
+  max_new_tokens: 16
+  temperature: 0.1
+  top_p: 0.95
+  repetition_penalty: 1.1

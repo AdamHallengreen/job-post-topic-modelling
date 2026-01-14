@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 import polars as pl
 import polars.selectors as cs
 from bertopic import BERTopic
-from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance
+from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance,LlamaCPP
 from bertopic.vectorizers import ClassTfidfTransformer
-from ctransformers import AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
+from llama_cpp import Llama
 from dvclive import Live
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
@@ -28,9 +29,9 @@ from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name  # noqa: E402
-from job_post_topic_modelling.train import get_embedding_model_cpu, load_pretrained_embeddings  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
+    load_pretrained_embeddings,
 )
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.log_html import log_html  # noqa: E402
@@ -329,76 +330,6 @@ def _clean_label(text: str) -> str:
     return text
 
 
-def label_topics_with_ctransformers(
-    topic_model,
-    llm,  # your ctransformers model (callable: llm(prompt, **gen_kwargs))
-    prompt_template: str,
-    top_n_words: int = 10,
-    use_docs: bool = True,
-    nr_docs: int = 3,
-    gen_kwargs: Optional[dict] = None,
-) -> dict[int, str]:
-    """
-    Returns: {topic_id: "Nice Danish label"}
-    """
-    gen_kwargs = gen_kwargs or {
-        "max_new_tokens": 16,
-        "temperature": 0.1,
-        "top_p": 0.95,
-        "repetition_penalty": 1.1,
-    }
-
-    labels: dict[int, str] = {}
-    print("Generating topic labels...")
-    # Iterate topics (skip outlier topic -1)
-    for topic_id in sorted(topic_model.get_topics().keys()):
-        if topic_id == -1:
-            continue
-
-        # Keywords
-        kw = [w for w, _ in topic_model.get_topic(topic_id)[:top_n_words]]
-        keywords = ", ".join(kw)
-
-        # Representative docs (optional; API differs a bit across versions)
-        docs_block = ""
-        if use_docs:
-            docs: list[str] = []
-            try:
-                docs = topic_model.get_representative_docs(topic=topic_id)  # common signature
-            except TypeError:
-                try:
-                    docs = topic_model.get_representative_docs(topic_id)  # older signature
-                except Exception:
-                    docs = []
-            except Exception:
-                docs = []
-
-            docs = (docs or [])[:nr_docs]
-            if docs:
-                docs_block = "\n".join(["- " + d[:400].replace("\n", " ") for d in docs])
-
-        prompt = prompt_template.replace("[KEYWORDS]", keywords).replace("[DOCUMENTS]", docs_block)
-        # Generate
-        out = llm(prompt, **gen_kwargs)
-        label = _clean_label(out)
-        if True:
-            print("---")
-            print(f"Topic: {topic_id}")
-            print("Prompt:")
-            print(prompt)
-            print("LLM output:")
-            print(out)
-            print(f"Cleaned label: {label}")
-
-        # Fallback if model returns nothing useful
-        if not label:
-            label = " ".join(kw[:3])
-
-        labels[topic_id] = label
-
-    return labels
-
-
 if __name__ == "__main__":
     # Define file paths
     project_root = Path(find_project_root(__file__))
@@ -432,7 +363,7 @@ if __name__ == "__main__":
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
     if par.settings.use_cpu:
-        embedding_model = get_embedding_model_cpu(embedding_model_name)
+        embedding_model =SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
     else:
         embedding_model = get_embedding_model(embedding_model_name)
 
@@ -473,18 +404,21 @@ if __name__ == "__main__":
         print("Skipping topic representation update...")
 
     df_topic_info = topic_model.get_topic_info()
+
     if par.label_llm.use_llm and par.settings.update_topics:
         user = os.popen("whoami").read().strip()  # noqa: S605, S607
         llm_path = Path(rf"/home/{user}@PROD.SITAD.DK/code/help/installations")
-        print("Loading ctransformers model for topic labeling...")
-        llm = AutoModelForCausalLM.from_pretrained(
-            str(llm_path / par.label_llm.model_folder),
-            model_file=par.label_llm.model,
-            model_type=par.label_llm.model_type,
-            gpu_layers=par.label_llm.gpu_layers,
-            hf=False,
+        print("Loading llm model for topic labeling...")
+
+        llm = Llama(
+            model_path=str(llm_path / par.label_llm.model_folder / par.label_llm.model),
+            n_ctx=4096,
+            n_threads=par.label_llm.n_threads,
+            n_threads_batch=par.label_llm.n_threads,
+            n_gpu_layers=par.label_llm.gpu_layers,
         )
-        prompt_template = """
+        print("Labeling topics with LLM...")
+        prompt_template_start = """
         Du hjælper med at give korte emne-labels på dansk til emner fra BERTOPIC.
 
         Eksempler på dokumenter i emnet:
@@ -492,25 +426,58 @@ if __name__ == "__main__":
 
         Nøgleord i emnet: [KEYWORDS]
 
-        Returnér KUN en kort etiket (1-3 ord). Ingen ekstra tekst, ingen citationstegn.
         """
+        promts = {
+            'llm_label': prompt_template_start + """
+            Returnér KUN en kort etiket, 1-5 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            """,
+            'llm_name': prompt_template_start + """
+            Returnér KUN et kort navn, 1-3 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            """
+        }
+        promts = {
+            'llm_label': prompt_template_start + """
+            Returnér KUN en kort etiket, 1-5 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            """,
+            'llm_name': prompt_template_start + """
+            Returnér KUN et meget kort navn, 1-2 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            """
+        }
 
-        print("Labeling topics with LLM...")
-        labels = label_topics_with_ctransformers(
-            topic_model=topic_model,
-            llm=llm,  # your ctransformers model object
-            prompt_template=prompt_template,
-            top_n_words=par.label_llm.top_n_words,
-            use_docs=par.label_llm.use_representative_docs,
-            nr_docs=par.label_llm.nr_representative_docs,
-            gen_kwargs=par.label_llm.gen_kwargs,
+        system_prompt = "You are an assistant that labels topics derived from BERTOPIC using sentences from job ads. The ads and your answers are in Danish."
+        # Possibly adds as par.label_llm.gen_kwargs
+
+        representation_models = {
+            key: LlamaCPP(
+            llm,
+            prompt=value,
+            system_prompt=system_prompt,
+            pipeline_kwargs=par.label_llm.pipeline_kwargs,
+            nr_docs= par.label_llm.nr_representative_docs,       # how many representative docs to include
+            diversity=0.2,     # reduce near-duplicate docs
+            doc_length=220,    # truncate each doc to keep within ctx
+            tokenizer="whitespace",
+            )
+            for key, value in promts.items()
+        }
+        representation_models['Main'] = representation_model  # keep main representation to feed into LLM
+
+        topic_model.update_topics(
+            documents[: par_train.settings.nobs],
+            vectorizer_model=vectorizer_model,
+            ctfidf_model=ctfidf_model,
+            representation_model=representation_models,
         )
 
-        print("Updating topic info with new labels...")
-        df_topic_info["llm_label"] = df_topic_info["Topic"].map(lambda x: labels.get(x, "outlier"))
+        print('Updating topic info with llm labels...')
+        labels = {key : value[0][0] for key,value in topic_model.topic_aspects_['llm_label'].items() }
+        names = {key : f'{key}_{_clean_label(value[0][0])}' for key,value in topic_model.topic_aspects_['llm_name'].items() }
+
+        df_topic_info['llm_label'] = df_topic_info['Topic'].map(labels)
+        df_topic_info['llm_name'] = df_topic_info['Topic'].map(names)
 
     print("Saving topic info to parquet...")
-    pl.from_pandas(df_topic_info).write_parquet(output_dir / "topic_info.parquet")
+    pl.from_pandas(df_topic_info ).write_parquet(output_dir / "topic_info.parquet")
 
     # Save model
     print("Saving model with topic representation...")

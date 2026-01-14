@@ -1,6 +1,6 @@
 use_llm: true
-model: "Mistral-7B-Instruct-v0.3-Q6_K.gguf"
-model_folder: "Mistral-7B-Instruct-v0.3-GGUF"
+model: "Phi-3-medium-4k-instruct-Q6_K_L.gguf"
+model_folder: "Phi-3-medium-4k-instruct-GGUF"
 gpu_layers: 0
 use_representative_docs: true
 nr_representative_docs: 5

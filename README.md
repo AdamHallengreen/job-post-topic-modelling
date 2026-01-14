@@ -156,8 +156,29 @@ pip install "kaleido==0.2.1" "plotly<6"
 ```
 
 
-ls -lh /home/b281467@PROD.SITAD.DK/code/help/installations/llama_cpp_wheels | grep -i llama
-I also had some issues where I had to force a reinstall of spacy-loggers
+
+
+llama-cpp-python which is used for the local llm, is incompatible with UMAP (because of the numpy version they need)
+Therefore we create a secondary environment to run evaluate in
+
+`conda create -n topicmodel312_llama_1 --clone topicmodel312_1 -y`
+`conda activate topicmodel312_llama_1`
+
+And build llama-cpp-python:
+```
+conda install -c conda-forge -y cmake ninja make c-compiler cxx-compiler
+pip install -U pip setuptools wheel
+conda install -c conda-forge -y openblas
+CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" pip install --no-binary=llama-cpp-python --no-cache-dir --force-reinstall llama-cpp-python -v
+```
+This will give a warning about numpy versions, which causes errors if we import anything that uses numba.
+
+Maybe we'll be able to use newer models once this is implemented: https://github.com/abetlen/llama-cpp-python/pull/2108
+
+The model currently used is from: https://huggingface.co/bartowski/Phi-3-medium-4k-instruct-GGUF 
+
+
+
 
 Since uv doesn't work I've also install precommit:
  `pip install pre-commit`
