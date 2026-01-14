@@ -661,8 +661,8 @@ if __name__ == "__main__":
         fig = create_top_words_fig(topic_model)
         live.log_image("top_words.png", fig)
 
-        topics_fig = topic_model.visualize_topics()
-        log_html(live, "topics_fig.png", topics_fig)
+        #topics_fig = topic_model.visualize_topics()
+        #log_html(live, "topics_fig.png", topics_fig)
 
         heatmap_fig = topic_model.visualize_heatmap()
         log_html(live, "heatmap_fig.png", heatmap_fig)
