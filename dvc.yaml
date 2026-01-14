@@ -86,7 +86,7 @@ stages:
       MKL_NUM_THREADS=8
       OPENBLAS_NUM_THREADS=8
       NUMEXPR_NUM_THREADS=8
-      conda run topicmodel312_llama_1 --no-capture-output python src/job_post_topic_modelling/evaluate.py
+      conda run -n topicmodel312_llama_1 --no-capture-output python src/job_post_topic_modelling/evaluate.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors

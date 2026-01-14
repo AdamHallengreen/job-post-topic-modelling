@@ -241,7 +241,8 @@ stages:
       size: 172405
   evaluate:
     cmd: "POLARS_MAX_THREADS=8 OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8
-      NUMEXPR_NUM_THREADS=8 python src/job_post_topic_modelling/evaluate.py\n"
+      NUMEXPR_NUM_THREADS=8 conda run -n topicmodel312_llama_1 --no-capture-output
+      python src/job_post_topic_modelling/evaluate.py\n"
     deps:
     - path: models/bertopic_model/config.json
       hash: md5
@@ -289,8 +290,8 @@ stages:
       size: 98531
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: 176045d7a926632e7211b5d255351244
-      size: 25390
+      md5: 3a848544da468ae3611ef54172b3609f
+      size: 25009
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: 181480ea4a4df1184103235d3b67f23c
@@ -326,18 +327,17 @@ stages:
             diversity: 0.2
           label_llm:
             use_llm: true
-            model: Mistral-7B-Instruct-v0.3-Q6_K.gguf
-            model_folder: Mistral-7B-Instruct-v0.3-GGUF
+            model: Phi-3-medium-4k-instruct-Q6_K_L.gguf
+            model_folder: Phi-3-medium-4k-instruct-GGUF
             gpu_layers: 0
-            model_type: mistral
             use_representative_docs: true
             nr_representative_docs: 5
             top_n_words: 10
-            gen_kwargs:
-              max_new_tokens: 16
+            n_threads: 15
+            pipeline_kwargs:
+              max_tokens: 16
               temperature: 0.1
-              top_p: 0.95
-              repetition_penalty: 1.1
+              top_p: 1.0
           settings:
             similarity_phrase: fleksibel
             top_n: 8
@@ -347,17 +347,17 @@ stages:
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: 49fd8aea0ade8871e7377853843e8b0c.dir
-      size: 686056
+      md5: 65b292f2b226258ce956178e61815f7a.dir
+      size: 699900
       nfiles: 3
     - path: output/topic_info.csv
       hash: md5
-      md5: e6f8902ac4fec686404348c9dc988b78
-      size: 22057
+      md5: adcd2002db7b88f76330f14c9adb4de8
+      size: 24182
     - path: output/topic_info.parquet
       hash: md5
-      md5: 2a502d138a9e189221bbe3cdefd464ec
-      size: 16507
+      md5: d6fc529247b7805c3f1a85c7da62aec8
+      size: 17399
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:

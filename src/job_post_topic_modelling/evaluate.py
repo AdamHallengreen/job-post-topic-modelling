@@ -408,50 +408,50 @@ if __name__ == "__main__":
     if par.label_llm.use_llm and par.settings.update_topics:
         user = os.popen("whoami").read().strip()  # noqa: S605, S607
         llm_path = Path(rf"/home/{user}@PROD.SITAD.DK/code/help/installations")
-        print("Loading llm model for topic labeling...")
-
-        llm = Llama(
-            model_path=str(llm_path / par.label_llm.model_folder / par.label_llm.model),
-            n_ctx=4096,
-            n_threads=par.label_llm.n_threads,
-            n_threads_batch=par.label_llm.n_threads,
-            n_gpu_layers=par.label_llm.gpu_layers,
-        )
         print("Labeling topics with LLM...")
-        prompt_template_start = """
-        Du hjælper med at give korte emne-labels på dansk til emner fra BERTOPIC.
 
-        Eksempler på dokumenter i emnet:
-        [DOCUMENTS]
-
-        Nøgleord i emnet: [KEYWORDS]
-
-        """
         promts = {
-            'llm_label': prompt_template_start + """
-            Returnér KUN en kort etiket, 1-5 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            'llm_label':"""
+             You help give short labels in english to topics derived from BERTOPIC using sentences from Danish jobs ads. 
+             The documents and keyswords are in danish but your label is in english
+
+            Examples of documents in the topic:
+            [DOCUMENTS]
+
+            Keywords in the topic: [KEYWORDS]
+
+            Return only a short label of 1-5 words in english, no extra text, quotation marks etc.
             """,
-            'llm_name': prompt_template_start + """
-            Returnér KUN et kort navn, 1-3 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
-            """
-        }
-        promts = {
-            'llm_label': prompt_template_start + """
-            Returnér KUN en kort etiket, 1-5 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
-            """,
-            'llm_name': prompt_template_start + """
+            'llm_name': """
+             Du hjælper med at give korte emne-labels på dansk til emner fra BERTOPIC.
+
+            Eksempler på dokumenter i emnet:
+            [DOCUMENTS]
+
+            Nøgleord i emnet: [KEYWORDS]
+
             Returnér KUN et meget kort navn, 1-2 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
             """
         }
 
-        system_prompt = "You are an assistant that labels topics derived from BERTOPIC using sentences from job ads. The ads and your answers are in Danish."
+        system_prompts = {
+            'llm_label': "You are an assistant that labels topics derived from BERTOPIC using sentences from job ads. The ads are in Danish, but the label you answer with is in english.",
+            'llm_name' : "You are an assistant that gives short variable names to topics derived from BERTOPIC using sentences from job ads. The ads and your answers are in Danish."
+        }
         # Possibly adds as par.label_llm.gen_kwargs
+        llm = Llama(
+                model_path=str(llm_path / par.label_llm.model_folder / par.label_llm.model),
+                n_ctx=4096,
+                n_threads=par.label_llm.n_threads,
+                n_threads_batch=par.label_llm.n_threads,
+                n_gpu_layers=par.label_llm.gpu_layers,
+            )
 
         representation_models = {
             key: LlamaCPP(
             llm,
             prompt=value,
-            system_prompt=system_prompt,
+            system_prompt=system_prompts[key],
             pipeline_kwargs=par.label_llm.pipeline_kwargs,
             nr_docs= par.label_llm.nr_representative_docs,       # how many representative docs to include
             diversity=0.2,     # reduce near-duplicate docs
@@ -468,10 +468,11 @@ if __name__ == "__main__":
             ctfidf_model=ctfidf_model,
             representation_model=representation_models,
         )
-
+        llm.close()
+        del llm
         print('Updating topic info with llm labels...')
         labels = {key : value[0][0] for key,value in topic_model.topic_aspects_['llm_label'].items() }
-        names = {key : f'{key}_{_clean_label(value[0][0])}' for key,value in topic_model.topic_aspects_['llm_name'].items() }
+        names = {key : f'{key}_{_clean_label(value[0][0]).lower()}' for key,value in topic_model.topic_aspects_['llm_name'].items() }
 
         df_topic_info['llm_label'] = df_topic_info['Topic'].map(labels)
         df_topic_info['llm_name'] = df_topic_info['Topic'].map(names)
