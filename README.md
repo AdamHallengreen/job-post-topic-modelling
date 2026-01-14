@@ -175,7 +175,7 @@ This will give a warning about numpy versions, which causes errors if we import 
 
 Maybe we'll be able to use newer models once this is implemented: https://github.com/abetlen/llama-cpp-python/pull/2108
 
-The model currently used is from: https://huggingface.co/bartowski/Phi-3-medium-4k-instruct-GGUF 
+The model currently used is from: https://huggingface.co/bartowski/Phi-3-medium-4k-instruct-GGUF
 
 
 

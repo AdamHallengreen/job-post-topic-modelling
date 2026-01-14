@@ -8,5 +8,5 @@ top_n_words: 10
 n_threads: 15
 pipeline_kwargs:
   max_tokens: 16
-  temperature: 0.1
+  temperature: 0.0
   top_p: 1.0

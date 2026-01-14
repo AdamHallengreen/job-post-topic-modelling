@@ -3,20 +3,19 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import polars as pl
 import polars.selectors as cs
 from bertopic import BERTopic
-from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance,LlamaCPP
+from bertopic.representation import KeyBERTInspired, LlamaCPP, MaximalMarginalRelevance
 from bertopic.vectorizers import ClassTfidfTransformer
-from sentence_transformers import SentenceTransformer
-from llama_cpp import Llama
 from dvclive import Live
+from llama_cpp import Llama
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
+from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 
 # from celer import LassoCV
@@ -89,6 +88,7 @@ def add_representative_docs(
         topic_model.topic_representations_,
         nr_samples=nr_samples,
         nr_repr_docs=nr_repr_docs,
+        diversity=0.5,
     )
 
 
@@ -363,7 +363,7 @@ if __name__ == "__main__":
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
     if par.settings.use_cpu:
-        embedding_model =SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
+        embedding_model = SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
     else:
         embedding_model = get_embedding_model(embedding_model_name)
 
@@ -411,18 +411,18 @@ if __name__ == "__main__":
         print("Labeling topics with LLM...")
 
         promts = {
-            'llm_label':"""
-             You help give short labels in english to topics derived from BERTOPIC using sentences from Danish jobs ads. 
-             The documents and keyswords are in danish but your label is in english
+            "llm_label": """
+            You help give short labels in english to topics derived from BERTOPIC using sentences from Danish jobs ads.
+            The documents and keywords are in danish, but your label is in english.
 
             Examples of documents in the topic:
             [DOCUMENTS]
 
             Keywords in the topic: [KEYWORDS]
 
-            Return only a short label of 1-5 words in english, no extra text, quotation marks etc.
+            Return ONLY a short label of 1-5 words in english and in one line, no extra text, quotation marks etc.
             """,
-            'llm_name': """
+            "llm_name": """
              Du hjælper med at give korte emne-labels på dansk til emner fra BERTOPIC.
 
             Eksempler på dokumenter i emnet:
@@ -431,36 +431,36 @@ if __name__ == "__main__":
             Nøgleord i emnet: [KEYWORDS]
 
             Returnér KUN et meget kort navn, 1-2 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
-            """
+            """,
         }
 
         system_prompts = {
-            'llm_label': "You are an assistant that labels topics derived from BERTOPIC using sentences from job ads. The ads are in Danish, but the label you answer with is in english.",
-            'llm_name' : "You are an assistant that gives short variable names to topics derived from BERTOPIC using sentences from job ads. The ads and your answers are in Danish."
+            "llm_label": "You are an assistant that labels topics derived from BERTOPIC using sentences from job ads. The ads are in Danish, but the label you answer with is in english.",
+            "llm_name": "You are an assistant that gives short variable names to topics derived from BERTOPIC using sentences from job ads. The ads and your answers are in Danish.",
         }
         # Possibly adds as par.label_llm.gen_kwargs
         llm = Llama(
-                model_path=str(llm_path / par.label_llm.model_folder / par.label_llm.model),
-                n_ctx=4096,
-                n_threads=par.label_llm.n_threads,
-                n_threads_batch=par.label_llm.n_threads,
-                n_gpu_layers=par.label_llm.gpu_layers,
-            )
+            model_path=str(llm_path / par.label_llm.model_folder / par.label_llm.model),
+            n_ctx=4096,
+            n_threads=par.label_llm.n_threads,
+            n_threads_batch=par.label_llm.n_threads,
+            n_gpu_layers=par.label_llm.gpu_layers,
+        )
 
         representation_models = {
             key: LlamaCPP(
-            llm,
-            prompt=value,
-            system_prompt=system_prompts[key],
-            pipeline_kwargs=par.label_llm.pipeline_kwargs,
-            nr_docs= par.label_llm.nr_representative_docs,       # how many representative docs to include
-            diversity=0.2,     # reduce near-duplicate docs
-            doc_length=220,    # truncate each doc to keep within ctx
-            tokenizer="whitespace",
+                llm,
+                prompt=value,
+                system_prompt=system_prompts[key],
+                pipeline_kwargs=par.label_llm.pipeline_kwargs,
+                nr_docs=par.label_llm.nr_representative_docs,  # how many representative docs to include
+                diversity=0.5,  # reduce near-duplicate docs
+                doc_length=220,  # truncate each doc to keep within ctx
+                tokenizer="whitespace",
             )
             for key, value in promts.items()
         }
-        representation_models['Main'] = representation_model  # keep main representation to feed into LLM
+        representation_models["Main"] = representation_model  # keep main representation to feed into LLM
 
         topic_model.update_topics(
             documents[: par_train.settings.nobs],
@@ -470,15 +470,20 @@ if __name__ == "__main__":
         )
         llm.close()
         del llm
-        print('Updating topic info with llm labels...')
-        labels = {key : value[0][0] for key,value in topic_model.topic_aspects_['llm_label'].items() }
-        names = {key : f'{key}_{_clean_label(value[0][0]).lower()}' for key,value in topic_model.topic_aspects_['llm_name'].items() }
+        print("Updating topic info with llm labels...")
+        labels = {
+            key: value[0][0].splitlines()[0].strip() for key, value in topic_model.topic_aspects_["llm_label"].items()
+        }
+        names = {
+            key: f"{key}_{_clean_label(value[0][0]).lower()}"
+            for key, value in topic_model.topic_aspects_["llm_name"].items()
+        }
 
-        df_topic_info['llm_label'] = df_topic_info['Topic'].map(labels)
-        df_topic_info['llm_name'] = df_topic_info['Topic'].map(names)
+        df_topic_info["llm_label"] = df_topic_info["Topic"].map(labels)
+        df_topic_info["llm_name"] = df_topic_info["Topic"].map(names)
 
     print("Saving topic info to parquet...")
-    pl.from_pandas(df_topic_info ).write_parquet(output_dir / "topic_info.parquet")
+    pl.from_pandas(df_topic_info).write_parquet(output_dir / "topic_info.parquet")
 
     # Save model
     print("Saving model with topic representation...")
@@ -662,8 +667,8 @@ if __name__ == "__main__":
         fig = create_top_words_fig(topic_model)
         live.log_image("top_words.png", fig)
 
-        #topics_fig = topic_model.visualize_topics()
-        #log_html(live, "topics_fig.png", topics_fig)
+        # topics_fig = topic_model.visualize_topics()
+        # log_html(live, "topics_fig.png", topics_fig)
 
         heatmap_fig = topic_model.visualize_heatmap()
         log_html(live, "heatmap_fig.png", heatmap_fig)
