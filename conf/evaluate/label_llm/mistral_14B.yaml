@@ -4,7 +4,7 @@ model_folder: "Ministral-3-14B-Instruct-2512-GGUF"
 gpu_layers: 0
 model_type: "mistral"
 use_representative_docs: true
-nr_representative_docs: 5
+nr_representative_docs: 10
 top_n_words: 10
 gen_kwargs:
   max_new_tokens: 16

@@ -64,7 +64,7 @@ def load_model(model_path: str | Path) -> object:
 
 
 def add_representative_docs(
-    topic_model: BERTopic, documents: list[str], nr_samples: int = 2000, nr_repr_docs: int = 5
+    topic_model: BERTopic, documents: list[str], nr_samples: int = 2000, nr_repr_docs: int = 8
 ) -> None:
     """
     Add representative documents to a BERTopic topic_model.
@@ -430,7 +430,7 @@ if __name__ == "__main__":
 
             Nøgleord i emnet: [KEYWORDS]
 
-            Returnér KUN et meget kort navn, 1-2 ord på en linje. Ingen ekstra tekst, ingen citationstegn.
+            Returnér KUN et meget kort navn, 1-2 ord på en linje. Ingen ekstra tekst, ingen citationstegn eller lignende.
             """,
         }
 
