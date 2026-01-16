@@ -380,12 +380,12 @@ if __name__ == "__main__":
         # add additional representation models
         representation_model_dict = {
             "Main": representation_model,
-            "MMR05": MaximalMarginalRelevance(diversity=0.5),
-            "MMR08": MaximalMarginalRelevance(diversity=0.8),
+            # "MMR05": MaximalMarginalRelevance(diversity=0.5),
+            # "MMR08": MaximalMarginalRelevance(diversity=0.8),
             "keybert": KeyBERTInspired(),
-            "B30_MMR05": [KeyBERTInspired(top_n_words=30), MaximalMarginalRelevance(diversity=0.5)],
-            "B50_MMR05": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.5)],
-            "B50_MMR08": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.8)],
+            # "B30_MMR05": [KeyBERTInspired(top_n_words=30), MaximalMarginalRelevance(diversity=0.5)],
+            # "B50_MMR05": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.5)],
+            # "B50_MMR08": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.8)],
             "B50_MMR02": [KeyBERTInspired(top_n_words=50), MaximalMarginalRelevance(diversity=0.2)],
         }
 
