@@ -78,10 +78,8 @@ def load_star_data(par) -> pl.DataFrame:
     """
     Loads the jobpost data from star data on the server
     """
-    # get username
-    username = os.popen("whoami").read().strip()  # noqa: S607 S605
 
-    folder_path = Path(f"/home/{username}@PROD.SITAD.DK/code/jobads/src/dgp/textdata/output")
+    folder_path = Path("/data/projects/klikdata/Asker/jobads/dgp/textdata/output")
 
     dataname = "jobads_clean.parquet"
     id_var = "ann_id"
