@@ -150,10 +150,7 @@ def get_vectorizer(par: OmegaConf, stop_words=None):
 
 
 def load_click_shares() -> pl.DataFrame:
-    # get username
-    username = os.popen("whoami").read().strip()  # noqa: S607 S605
-
-    folder_path = Path(f"/home/{username}@PROD.SITAD.DK/code/jobads/src/dgp/prep_clicks_for_dvc/output")
+    folder_path = Path("/data/projects/klikdata/Asker/jobads/dgp/prep_clicks_for_dvc")
 
     click_shares = pl.read_parquet(folder_path / "ads_clicks_agg.parquet")
     return click_shares

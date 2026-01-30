@@ -79,7 +79,7 @@ def load_star_data(par) -> pl.DataFrame:
     Loads the jobpost data from star data on the server
     """
 
-    folder_path = Path("/data/projects/klikdata/Asker/jobads/dgp/textdata/output")
+    folder_path = Path("/data/projects/klikdata/Asker/jobads/dgp/textdata")
 
     dataname = "jobads_clean.parquet"
     id_var = "ann_id"
