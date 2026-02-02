@@ -546,12 +546,23 @@ if __name__ == "__main__":
 
         # residualized by occupation area
         df_merged_resid_omr = demean(
-            df_merged, var_list=[f"l_apply_share{suf}" for suf in ["", "_male", "_fem"]] + predictors, by_var="fagomrid"
+            df_merged,
+            var_list=[f"l_apply_share{suf}" for suf in ["", "_male", "_fem"]] + predictors + ["wfh_dummy"],
+            by_var="fagomrid",
         )
         results_share_cv_log_resid_omr = linear_lasso_cv_oos(
             df=df_merged_resid_omr,
             outcome="l_apply_share",
             predictors=predictors,
+            random_state=seed,
+            is_sparse=False,
+        )
+
+        # residualized by occupation area with wfh dummy
+        results_share_cv_log_resid_omr_wfh = linear_lasso_cv_oos(
+            df=df_merged_resid_omr,
+            outcome="l_apply_share",
+            predictors=[*predictors, "wfh"],
             random_state=seed,
             is_sparse=False,
         )
@@ -621,6 +632,7 @@ if __name__ == "__main__":
                 results_share_cv_log,
                 results_share_cv_log_resid_gr,
                 results_share_cv_log_resid_omr,
+                results_share_cv_log_resid_omr_wfh,
                 results_share_cv_log_train,
                 results_share_cv_log_train_topics,
                 results_share_cv_log_male,
@@ -631,6 +643,7 @@ if __name__ == "__main__":
                 "All",
                 "Residualized by group",
                 "Residualized by area",
+                "Residualized by area with wfh",
                 "Topic training",
                 "Topic training topics",
                 "Men",
