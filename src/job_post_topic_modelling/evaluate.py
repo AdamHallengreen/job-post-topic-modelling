@@ -562,7 +562,7 @@ if __name__ == "__main__":
         results_share_cv_log_resid_omr_wfh = linear_lasso_cv_oos(
             df=df_merged_resid_omr,
             outcome="l_apply_share",
-            predictors=[*predictors, "wfh"],
+            predictors=[*predictors, "wfh_dummy"],
             random_state=seed,
             is_sparse=False,
         )
