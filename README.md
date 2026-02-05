@@ -175,6 +175,8 @@ This will give a warning about numpy versions, which causes errors if we import 
 
 Maybe we'll be able to use newer models once this is implemented: https://github.com/abetlen/llama-cpp-python/pull/2108
 
+The apertus model is also still not usable in the current setup (I think it should be, but GGUF is not working for me)
+
 The model currently used is from: https://huggingface.co/bartowski/Phi-3-medium-4k-instruct-GGUF
 
 

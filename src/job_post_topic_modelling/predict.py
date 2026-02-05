@@ -32,7 +32,6 @@ def add_wfh(texts, topics_wide):
 
     df = texts.select(
         c.label,
-        c.text,
         wfh_dummy=pl.all_horizontal(
             pl.any_horizontal(
                 c.text.str.to_lowercase().str.contains_any([
