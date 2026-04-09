@@ -1,6 +1,6 @@
 prepare:
   settings:
-    nobs: 30000
+    nobs: null
     split_paragraphs: true
     split_sentences: true
   star:
@@ -11,7 +11,7 @@ embed:
     batch_size: 64
     device: null
     num_workers: 1
-    shard_size: 50000
+    shard_size: 2000000
   model:
     embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
     use_model2vec: false
@@ -22,7 +22,7 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
-    nobs: 1000000
+    nobs: 8000000
   seed_topics:
     seeds: null
   dimensionality_reduction:
@@ -33,19 +33,21 @@ train:
     metric: cosine
     random_state: null
     low_memory: true
+    n_jobs: 16
   clustering:
     model: HDBSCAN
-    min_cluster_size: 1000
-    min_samples: 500
+    min_cluster_size: 3000
+    min_samples: 200
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
+    core_dist_n_jobs: 8
 predict:
   settings:
-    nobs: 2000000
+    nobs: null
     clustering: false
     batch_mode: false
-    full_p_dist: false
+    full_p_dist: true
     ignore_limit: 0.5
 evaluate:
   vectorizer:
@@ -53,8 +55,8 @@ evaluate:
     ngram_range:
     - 1
     - 3
-    min_df: 10
-    max_features: 100000
+    min_df: 0.001
+    max_features: 1000000
   c_TF_IDF:
     model: c_TF_IDF
     bm25_weighting: false
@@ -62,9 +64,28 @@ evaluate:
   representation:
     model: MMR
     diversity: 0.2
+  label_llm:
+    use_llm: true
+    model: Phi-3-medium-4k-instruct-Q6_K_L.gguf
+    model_folder: Phi-3-medium-4k-instruct-GGUF
+    gpu_layers: 0
+    use_representative_docs: true
+    nr_representative_docs: 10
+    top_n_words: 10
+    n_threads: 15
+    pipeline_kwargs:
+      max_tokens: 16
+      temperature: 0.0
+      top_p: 1.0
   settings:
     similarity_phrase: fleksibel
     top_n: 8
+<<<<<<< HEAD
     update_topics: false
     use_cpu: false
     n_levels: 10
+=======
+    update_topics: true
+    oos_prediction: true
+    use_cpu: true
+>>>>>>> 40c28828e8260b501c5f16cc6a1a8027582d9e7f

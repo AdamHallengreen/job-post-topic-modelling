@@ -1,5 +1,12 @@
 similarity_phrase: fleksibel
 top_n: 8
+<<<<<<< HEAD
 update_topics: False
 use_cpu: true # Whether to force using CPU even if GPU is available
 n_levels: 10
+=======
+update_topics: false
+oos_prediction: false
+use_cpu: true # Whether to force using CPU even if GPU is available
+n_levels: 10
+>>>>>>> 40c28828e8260b501c5f16cc6a1a8027582d9e7f

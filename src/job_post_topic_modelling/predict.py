@@ -23,6 +23,56 @@ from job_post_topic_modelling.utils.data_io import (  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 from job_post_topic_modelling.utils.miscellaneous import print_params  # noqa: E402
 
+
+def add_wfh(texts, topics_wide):
+    pattern = (
+        r"\barbejd(e[rts]?|et)?(\s+\S+){0,2}\s+hjemme\s?fra\b"
+        # 'arbjd hjemmefra' men fleksibelt iforhold til stavning og op til 2 ord imellem
+    )
+
+    df = texts.select(
+        c.label,
+        wfh_dummy=pl.all_horizontal(
+            pl.any_horizontal(
+                c.text.str.to_lowercase().str.contains_any([
+                    "hjemmearbejd",
+                    "hjemmekontor",
+                    "remote arbejde",
+                    "work-from-home",
+                    "Work from home",
+                    "arbejdspladsen er hjemme",
+                    "remote work",
+                ]),
+                # f'udføres {hjemmefra}',f'opgaver {hjemmefra}']
+                c.text.str.to_lowercase().str.contains(pattern),
+            ),
+            ~c.text.str.contains_any(["væk hjemmefra", "langt hjemmefra"]),
+        ),
+    )
+    if False:
+        for label_sample in (
+            df.filter(c.text.str.to_lowercase().str.contains_any(["langt hjemmefra"]))
+            .sample(n=40, with_replacement=True)["label"]
+            .to_list()
+        ):
+            print(df.filter(c.label == label_sample)["text"].item())
+
+    texts = texts.join(df, on="label")
+
+    df_wide = df.with_columns(ann_id=extract_ann_id(c.label)).group_by("ann_id").agg(c.wfh_dummy.max())
+
+    topics_wide = topics_wide.join(df_wide, on="ann_id")
+    return texts, topics_wide
+
+
+def extract_ann_id(expr):
+    """
+    Extracts the first digits until _s
+    which is the ann_id of the label
+    """
+    return expr.str.extract(r"^(\d+)_s", 1)
+
+
 if __name__ == "__main__":
     # Define file paths
     project_root = Path(find_project_root(__file__))
@@ -124,16 +174,11 @@ if __name__ == "__main__":
             .with_columns(
                 pl.Series("predicted_topic", topics),
                 pl.Series("topic_probability", probs),
-                ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+                ann_id=extract_ann_id(c.label),
                 training_data=(pl.col("row_nr") < par_train.settings.nobs),
             )
             .drop("row_nr")
         )
-        print("Saving predictions at sentence level...")
-
-        # Save results
-        texts.write_parquet(output_dir / "predicted_topics.parquet")
-
         topics_wide = aggregate_predictions_to_ann_level(texts)
 
     elif par.settings.full_p_dist:
@@ -180,7 +225,7 @@ if __name__ == "__main__":
         )
 
         texts = texts.join(prob_df, on="label").with_columns(
-            ann_id=c.label.str.extract(r"^(\d+)_s", 1),
+            ann_id=extract_ann_id(c.label),
         )
         print("Saving predictions at sentence level...")
 
@@ -194,6 +239,13 @@ if __name__ == "__main__":
             ],
             pl.col("training_data").max(),
         )
+
+    print("Adding working from home...")
+    texts, topics_wide = add_wfh(texts, topics_wide)
+
+    print("Saving predictions at sentence level...")
+    # Save results
+    texts.write_parquet(output_dir / "predicted_topics.parquet")
 
     print("Saving aggregated results...")
     topics_wide.write_parquet(output_dir / "predicted_topics_agg.parquet")

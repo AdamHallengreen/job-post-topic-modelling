@@ -34,7 +34,6 @@ dependencies = [
     "umap-learn>=0.5.9.post2",
     "plotly==5.24.1",
     "kaleido==0.2.1",
-    "celer==0.7.4",
     "scipy==1.16.1",
 ]
 
