@@ -1,0 +1,12 @@
+use_llm: true
+model: "Apertus-8B-Instruct-2509-UD-Q8_K_XL.gguf"
+model_folder: "Apertus-8B-Instruct-2509-GGUF"
+gpu_layers: 0
+use_representative_docs: true
+nr_representative_docs: 10
+top_n_words: 10
+n_threads: 15
+pipeline_kwargs:
+  max_tokens: 16
+  temperature: 0.0
+  top_p: 0.9
