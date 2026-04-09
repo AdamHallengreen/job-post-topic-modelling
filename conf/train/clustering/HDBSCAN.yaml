@@ -1,6 +1,6 @@
 model: HDBSCAN
-min_cluster_size: 1000
-min_samples: 500
+min_cluster_size: 3000
+min_samples: 200
 metric: euclidean
 cluster_selection_method: leaf
 prediction_data: True
