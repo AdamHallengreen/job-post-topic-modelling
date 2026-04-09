@@ -108,24 +108,6 @@ stages:
     - evaluate
     outs:
     - output/topic_info.csv
-<<<<<<< HEAD
-=======
-    - output/topic_info.parquet
-    - output/bertopic_model_representation
-    always_changed: true
-  topic_hierarchy:
-    cmd: python src/job_post_topic_modelling/topic_hierarchy.py
-    deps:
-    - data/texts.parquet
-    - output/bertopic_model_representation
-    - src/job_post_topic_modelling/topic_hierarchy.py
-    - src/job_post_topic_modelling/utils/find_project_root.py
-    - src/job_post_topic_modelling/utils/miscellaneous.py
-    params:
-    - train.settings.nobs
-    - topic_hierarchy
-    outs:
->>>>>>> 40c28828e8260b501c5f16cc6a1a8027582d9e7f
     - output/topic_hierarchy.csv
     - output/bertopic_model_representation
     always_changed: true
