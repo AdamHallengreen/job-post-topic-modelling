@@ -7,3 +7,4 @@
 /predicted_topics_train.parquet
 /predicted_topics_agg_train.parquet
 /topic_info.parquet
+/topic_hierarchy.csv
