@@ -47,6 +47,8 @@ predict:
     batch_mode: false
     full_p_dist: false
     ignore_limit: 0.5
+topic_hierarchy:
+  n_levels: 10
 evaluate:
   vectorizer:
     model: CountVectorizer
