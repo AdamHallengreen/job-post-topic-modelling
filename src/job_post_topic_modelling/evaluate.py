@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import polars as pl
 import polars.selectors as cs
 from bertopic import BERTopic
@@ -82,6 +84,82 @@ def create_top_words_fig(model) -> Figure:
     plt.axis("off")
 
     return fig
+
+
+def build_hierarchy_levels(
+    topic_model: BERTopic,
+    documents: list[str],
+    n_levels: int,
+) -> pd.DataFrame:
+    """
+    Build a DataFrame mapping each leaf topic to its cluster name at each hierarchy level.
+
+    Uses BERTopic's hierarchical_topics to get the merge tree, then cuts the
+    dendrogram at n_levels evenly spaced distance thresholds.
+
+    Returns a pandas DataFrame with columns: Topic, step_1, step_2, ..., step_N
+    where step_1 is the most granular and step_N is the broadest.
+    """
+    topic_info = topic_model.get_topic_info()
+    leaf_topics = topic_info[topic_info["Topic"] != -1]["Topic"].tolist()
+
+    hierarchy_df = topic_model.hierarchical_topics(documents)
+
+    if hierarchy_df.empty:
+        result = pd.DataFrame({"Topic": leaf_topics})
+        for i in range(1, n_levels + 1):
+            result[f"step_{i}"] = result["Topic"].map(
+                dict(zip(topic_info["Topic"], topic_info["Name"]))
+            )
+        return result
+
+    hierarchy_df = hierarchy_df.sort_values("Distance").reset_index(drop=True)
+    distances = hierarchy_df["Distance"].values
+    thresholds = np.linspace(distances.min(), distances.max(), n_levels + 1)[1:]
+
+    leaf_name_map = dict(zip(topic_info["Topic"], topic_info["Name"]))
+
+    merges = list(
+        zip(
+            hierarchy_df["Child_Left_ID"],
+            hierarchy_df["Child_Right_ID"],
+            hierarchy_df["Parent_ID"],
+            hierarchy_df["Parent_Name"],
+            hierarchy_df["Distance"],
+        )
+    )
+
+    result = pd.DataFrame({"Topic": leaf_topics})
+
+    for level_i, threshold in enumerate(thresholds, 1):
+        parent = {t: t for t in leaf_topics}
+        group_name = dict(leaf_name_map)
+
+        for child_left, child_right, parent_id, parent_name, dist in merges:
+            if dist > threshold:
+                break
+            parent[parent_id] = parent_id
+            group_name[parent_id] = parent_name
+            parent[child_left] = parent_id
+            parent[child_right] = parent_id
+
+        def find_root(node):
+            visited = []
+            while parent.get(node, node) != node:
+                visited.append(node)
+                node = parent[node]
+            for v in visited:
+                parent[v] = node
+            return node
+
+        assignments = {}
+        for t in leaf_topics:
+            root = find_root(t)
+            assignments[t] = group_name[root]
+
+        result[f"step_{level_i}"] = result["Topic"].map(assignments)
+
+    return result
 
 
 def get_cTFIDF_model(par: OmegaConf):
@@ -508,6 +586,13 @@ if __name__ == "__main__":
         output_file = output_dir / "topic_info.csv"
         topic_info.to_csv(output_file)
         live.log_artifact(output_file, type="dataset")
+
+        print("Building topic hierarchy...")
+        hierarchy_levels = build_hierarchy_levels(topic_model, documents, par.settings.n_levels)
+        hierarchy_result = topic_info.merge(hierarchy_levels, on="Topic", how="left")
+        hierarchy_file = output_dir / "topic_hierarchy.csv"
+        hierarchy_result.to_csv(hierarchy_file, index=False)
+        live.log_artifact(hierarchy_file, type="dataset")
 
         live.log_metric("#Topics", len(topic_info), plot=False)
 

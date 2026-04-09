@@ -12,4 +12,3 @@ defaults:
   - evaluate/c_TF_IDF: c_TF_IDF
   - evaluate/representation: MMR
   - evaluate/settings: default
-  - topic_hierarchy/settings: default

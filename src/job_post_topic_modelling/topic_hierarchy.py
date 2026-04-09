@@ -114,16 +114,17 @@ if __name__ == "__main__":
     start = time.time()
     print_params(full_par)
 
-    # Load documents
-    print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet")
-    if par_train.settings.nobs is not None:
-        texts = texts.head(par_train.settings.nobs)
-    documents = texts["text"].to_list()
-
     # Load model (use the representation-updated model from evaluate)
     print("Loading model...")
     topic_model = BERTopic.load(output_dir / "bertopic_model_representation")
+
+    # Load documents — must match len(topic_model.topics_) exactly
+    print("Loading data...")
+    n_train = len(topic_model.topics_)
+    texts = pl.read_parquet(data_dir / "texts.parquet")
+    texts = texts.head(n_train)
+    documents = texts["text"].to_list()
+    print(f"Loaded {len(documents)} documents (matching model's {n_train} topics)")
 
     # Build hierarchy levels
     print(f"Building hierarchy with {par.n_levels} levels...")
