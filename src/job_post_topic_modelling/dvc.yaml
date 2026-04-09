@@ -6,3 +6,6 @@ artifacts:
   topic_info:
     path: ../../output/topic_info.csv
     type: dataset
+  topic_hierarchy:
+    path: ../../output/topic_hierarchy.csv
+    type: dataset
