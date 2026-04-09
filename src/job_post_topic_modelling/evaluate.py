@@ -124,6 +124,7 @@ def build_hierarchy_levels(
     topic_model: BERTopic,
     documents: list[str],
     n_levels: int,
+    llm_labels: dict[int, str] | None = None,
 ) -> pd.DataFrame:
     """
     Build a DataFrame mapping each leaf topic to its cluster name at each hierarchy level.
@@ -131,8 +132,10 @@ def build_hierarchy_levels(
     Uses BERTopic's hierarchical_topics to get the merge tree, then cuts the
     dendrogram at n_levels evenly spaced distance thresholds.
 
-    Returns a pandas DataFrame with columns: Topic, step_1, step_2, ..., step_N
-    where step_1 is the most granular and step_N is the broadest.
+    Returns a pandas DataFrame with columns per level:
+      - step_N: cluster name
+      - step_N_id: numeric index (1, 2, 3, ...) per unique cluster
+      - step_N_llm_label: concatenated LLM labels of topics in the cluster (if llm_labels provided)
     """
     topic_info = topic_model.get_topic_info()
     leaf_topics = topic_info[topic_info["Topic"] != -1]["Topic"].tolist()
@@ -141,10 +144,12 @@ def build_hierarchy_levels(
 
     if hierarchy_df.empty:
         result = pd.DataFrame({"Topic": leaf_topics})
+        name_map = dict(zip(topic_info["Topic"], topic_info["Name"]))
         for i in range(1, n_levels + 1):
-            result[f"step_{i}"] = result["Topic"].map(
-                dict(zip(topic_info["Topic"], topic_info["Name"]))
-            )
+            result[f"step_{i}"] = result["Topic"].map(name_map)
+            result[f"step_{i}_id"] = 1
+            if llm_labels is not None:
+                result[f"step_{i}_llm_label"] = result["Topic"].map(llm_labels)
         return result
 
     hierarchy_df = hierarchy_df.sort_values("Distance").reset_index(drop=True)
@@ -191,7 +196,22 @@ def build_hierarchy_levels(
             root = find_root(t)
             assignments[t] = group_name[root]
 
-        result[f"step_{level_i}"] = result["Topic"].map(assignments)
+        step_col = f"step_{level_i}"
+        result[step_col] = result["Topic"].map(assignments)
+
+        # Numeric index: each unique cluster gets a sequential integer
+        unique_clusters = result[step_col].unique()
+        cluster_to_id = {name: idx for idx, name in enumerate(sorted(unique_clusters), 1)}
+        result[f"{step_col}_id"] = result[step_col].map(cluster_to_id)
+
+        # Concatenated LLM labels per cluster
+        if llm_labels is not None:
+            cluster_llm = {}
+            for cluster_name in unique_clusters:
+                topics_in_cluster = result.loc[result[step_col] == cluster_name, "Topic"]
+                labels = [llm_labels[t] for t in topics_in_cluster if t in llm_labels]
+                cluster_llm[cluster_name] = " | ".join(labels)
+            result[f"{step_col}_llm_label"] = result[step_col].map(cluster_llm)
 
     return result
 
@@ -751,7 +771,10 @@ if __name__ == "__main__":
         live.log_artifact(output_file, type="dataset")
 
         print("Building topic hierarchy...")
-        hierarchy_levels = build_hierarchy_levels(topic_model, documents, par.settings.n_levels)
+        llm_labels = None
+        if "llm_label" in df_topic_info.columns:
+            llm_labels = dict(zip(df_topic_info["Topic"], df_topic_info["llm_label"]))
+        hierarchy_levels = build_hierarchy_levels(topic_model, documents, par.settings.n_levels, llm_labels=llm_labels)
         hierarchy_result = topic_info.merge(hierarchy_levels, on="Topic", how="left")
         hierarchy_file = output_dir / "topic_hierarchy.csv"
         hierarchy_result.to_csv(hierarchy_file, index=False)
