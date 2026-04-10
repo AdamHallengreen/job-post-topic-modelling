@@ -8,3 +8,4 @@
 /predicted_topics_agg_train.parquet
 /topic_info.parquet
 /topic_hierarchy.csv
+/topic_hierarchy_all_steps.csv

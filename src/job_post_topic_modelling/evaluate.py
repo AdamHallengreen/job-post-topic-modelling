@@ -150,13 +150,16 @@ def build_hierarchy_levels(
             result[f"step_{i}_id"] = 1
             if llm_labels is not None:
                 result[f"step_{i}_llm_label"] = result["Topic"].map(llm_labels)
-        return result
+        return result, None
 
     hierarchy_df = hierarchy_df.sort_values("Distance").reset_index(drop=True)
     distances = hierarchy_df["Distance"].values
     thresholds = np.linspace(distances.min(), distances.max(), n_levels + 1)[1:]
 
     leaf_name_map = dict(zip(topic_info["Topic"], topic_info["Name"]))
+    leaf_name_map.pop(-1) # remove minus 
+
+    step_dict = {key: [str(key), value] for key, value in leaf_name_map.items() }
 
     merges = list(
         zip(
@@ -165,55 +168,30 @@ def build_hierarchy_levels(
             hierarchy_df["Parent_ID"],
             hierarchy_df["Parent_Name"],
             hierarchy_df["Distance"],
+            hierarchy_df['Topics'],
         )
     )
 
     result = pd.DataFrame({"Topic": leaf_topics})
-
+    
+    treshold_lag = 0
     for level_i, threshold in enumerate(thresholds, 1):
-        parent = {t: t for t in leaf_topics}
-        group_name = dict(leaf_name_map)
-
-        for child_left, child_right, parent_id, parent_name, dist in merges:
-            if dist > threshold:
+        for child_left, child_right, parent_id, Parent_Name, dist, topics in merges:
+            if dist > threshold:  # because it is sorted
                 break
-            parent[parent_id] = parent_id
-            group_name[parent_id] = parent_name
-            parent[child_left] = parent_id
-            parent[child_right] = parent_id
+            if threshold>=dist>treshold_lag:
+                for topic_id in topics:
+                    step_dict[topic_id] = [parent_id,Parent_Name]
 
-        def find_root(node):
-            visited = []
-            while parent.get(node, node) != node:
-                visited.append(node)
-                node = parent[node]
-            for v in visited:
-                parent[v] = node
-            return node
+        records = [
+                {"Topic": key, f"step{level_i}_id": vals[0], f"step{level_i}_name": vals[1]}
+                for key, vals in step_dict.items()
+            ]
+        step_df = pd.DataFrame(records)
+        result = result.merge(step_df,on='Topic')
 
-        assignments = {}
-        for t in leaf_topics:
-            root = find_root(t)
-            assignments[t] = group_name[root]
 
-        step_col = f"step_{level_i}"
-        result[step_col] = result["Topic"].map(assignments)
-
-        # Numeric index: each unique cluster gets a sequential integer
-        unique_clusters = result[step_col].unique()
-        cluster_to_id = {name: idx for idx, name in enumerate(sorted(unique_clusters), 1)}
-        result[f"{step_col}_id"] = result[step_col].map(cluster_to_id)
-
-        # Concatenated LLM labels per cluster
-        if llm_labels is not None:
-            cluster_llm = {}
-            for cluster_name in unique_clusters:
-                topics_in_cluster = result.loc[result[step_col] == cluster_name, "Topic"]
-                labels = [llm_labels[t] for t in topics_in_cluster if t in llm_labels]
-                cluster_llm[cluster_name] = " | ".join(labels)
-            result[f"{step_col}_llm_label"] = result[step_col].map(cluster_llm)
-
-    return result
+    return result, hierarchy_df
 
 
 def get_cTFIDF_model(par: OmegaConf):
@@ -774,11 +752,21 @@ if __name__ == "__main__":
         llm_labels = None
         if "llm_label" in df_topic_info.columns:
             llm_labels = dict(zip(df_topic_info["Topic"], df_topic_info["llm_label"]))
-        hierarchy_levels = build_hierarchy_levels(topic_model, documents, par.settings.n_levels, llm_labels=llm_labels)
+        hierarchy_levels, hierarchy_df = build_hierarchy_levels(topic_model, documents, par.settings.n_levels, llm_labels=llm_labels)
         hierarchy_result = topic_info.merge(hierarchy_levels, on="Topic", how="left")
+
+        # sort for easier lookup in hierarchy
+        hierarchy_result = hierarchy_result.sort_values([f'step{level}_id' for level in range(par.settings.n_levels,0,-1)])
+
         hierarchy_file = output_dir / "topic_hierarchy.csv"
         hierarchy_result.to_csv(hierarchy_file, index=False)
         live.log_artifact(hierarchy_file, type="dataset")
+
+        # Hierarchy with all merging steps
+        hierarchy_steps_file = output_dir / "topic_hierarchy_all_steps.csv"
+        hierarchy_df.to_csv(hierarchy_steps_file, index=False)
+        live.log_artifact(hierarchy_file, type="dataset")
+
 
         live.log_metric("#Topics", len(topic_info), plot=False)
 

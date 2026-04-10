@@ -290,8 +290,8 @@ stages:
       size: 23518844
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: bd5d56609ad6032206819479407a3b8f
-      size: 25485
+      md5: ba6b79b33ca222d8add8de2e943fa9bb
+      size: 29284
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: 181480ea4a4df1184103235d3b67f23c
@@ -344,12 +344,21 @@ stages:
             update_topics: true
             oos_prediction: true
             use_cpu: true
+            n_levels: 10
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: 69fdbb427c6d07a51212b306bc9ba667.dir
-      size: 66517242
+      md5: 61523f0b87381cafd2a1e4aa3a44165d.dir
+      size: 66517241
       nfiles: 3
+    - path: output/topic_hierarchy.csv
+      hash: md5
+      md5: 8464e5ecff937adce08c32ab2e63956f
+      size: 644166
+    - path: output/topic_hierarchy_all_steps.csv
+      hash: md5
+      md5: d25cb09a0362ff3f0b61f1c656c0a181
+      size: 94040
     - path: output/topic_info.csv
       hash: md5
       md5: d7ce2087ef6a6842ad7047a722ddc957

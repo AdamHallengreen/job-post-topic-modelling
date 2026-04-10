@@ -1,6 +1,6 @@
 similarity_phrase: fleksibel
 top_n: 8
 update_topics: True
-oos_prediction: false
+oos_prediction: True
 use_cpu: true # Whether to force using CPU even if GPU is available
 n_levels: 10
