@@ -290,8 +290,8 @@ stages:
       size: 23518844
     - path: src/job_post_topic_modelling/evaluate.py
       hash: md5
-      md5: ba6b79b33ca222d8add8de2e943fa9bb
-      size: 29284
+      md5: a055608515485ce2e7f2e04eb4c3fc1f
+      size: 29330
     - path: src/job_post_topic_modelling/utils/data_io.py
       hash: md5
       md5: 181480ea4a4df1184103235d3b67f23c
@@ -348,25 +348,25 @@ stages:
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: 4bc82a8f9389b496e18b72bbbd874472.dir
-      size: 66517123
+      md5: bd41f2ed97d7fd0a4e62edb782efb5ff.dir
+      size: 66517130
       nfiles: 3
     - path: output/topic_hierarchy.csv
       hash: md5
-      md5: 8464e5ecff937adce08c32ab2e63956f
-      size: 644166
+      md5: 0add1fceb60869cd48f402e76fbd9f2d
+      size: 960347
     - path: output/topic_hierarchy_all_steps.csv
       hash: md5
-      md5: f3623cad4af5b249d7b64c6258387145
-      size: 94039
+      md5: 6f8402a6c2aa183c14ce44f74f3672d1
+      size: 94041
     - path: output/topic_info.csv
       hash: md5
-      md5: d7ce2087ef6a6842ad7047a722ddc957
-      size: 424003
+      md5: c065532e28832483e3dbc4bd730878aa
+      size: 740184
     - path: output/topic_info.parquet
       hash: md5
-      md5: d6d384a531cee05f14680d90df90a2ce
-      size: 132697
+      md5: c6af952d7881c0eb7dbb0e4deaed12f8
+      size: 229196
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
