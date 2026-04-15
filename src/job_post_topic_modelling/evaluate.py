@@ -472,6 +472,7 @@ if __name__ == "__main__":
         add_representative_docs(
             topic_model,
             documents,
+            nr_repr_docs = par.settings.top_n
         )
     else:
         print("Skipping topic representation update...")
