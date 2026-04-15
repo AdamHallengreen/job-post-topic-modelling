@@ -79,7 +79,7 @@ evaluate:
       top_p: 1.0
   settings:
     similarity_phrase: fleksibel
-    top_n: 8
+    top_n: 20
     update_topics: true
     oos_prediction: true
     use_cpu: true

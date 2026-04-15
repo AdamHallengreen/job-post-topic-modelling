@@ -340,7 +340,7 @@ stages:
               top_p: 1.0
           settings:
             similarity_phrase: fleksibel
-            top_n: 8
+            top_n: 20
             update_topics: true
             oos_prediction: true
             use_cpu: true
@@ -348,8 +348,8 @@ stages:
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: 61523f0b87381cafd2a1e4aa3a44165d.dir
-      size: 66517241
+      md5: 4bc82a8f9389b496e18b72bbbd874472.dir
+      size: 66517123
       nfiles: 3
     - path: output/topic_hierarchy.csv
       hash: md5
@@ -357,8 +357,8 @@ stages:
       size: 644166
     - path: output/topic_hierarchy_all_steps.csv
       hash: md5
-      md5: d25cb09a0362ff3f0b61f1c656c0a181
-      size: 94040
+      md5: f3623cad4af5b249d7b64c6258387145
+      size: 94039
     - path: output/topic_info.csv
       hash: md5
       md5: d7ce2087ef6a6842ad7047a722ddc957
