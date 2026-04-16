@@ -198,7 +198,8 @@ if __name__ == "__main__":
 
             # Replace negatives with zeros
             sim_matrix[sim_matrix < 0] = 0
-            probs_batch = sim_matrix / sim_matrix.sum(axis=1, keepdims=True)
+
+            probs_batch = sim_matrix
 
             if par.settings.ignore_limit is not None:
                 print(f"Ignoring sentences with max topic prob < {par.settings.ignore_limit}...")

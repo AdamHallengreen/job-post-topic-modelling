@@ -48,7 +48,7 @@ predict:
     clustering: false
     batch_mode: false
     full_p_dist: true
-    ignore_limit: 0.5
+    ignore_limit: null
 evaluate:
   vectorizer:
     model: CountVectorizer
