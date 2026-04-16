@@ -169,8 +169,8 @@ stages:
       size: 95254749496
     - path: src/job_post_topic_modelling/predict.py
       hash: md5
-      md5: 67b2b637c05cb89172b25f0e7572e7aa
-      size: 10159
+      md5: c5a4da952de342f181d5c0202555ffb5
+      size: 10120
     - path: src/job_post_topic_modelling/train.py
       hash: md5
       md5: f30dca8e1f9f785d7e0e591bb2c8d2fb
@@ -199,7 +199,7 @@ stages:
             clustering: false
             batch_mode: false
             full_p_dist: true
-            ignore_limit: 0.5
+            ignore_limit:
         train:
           settings:
             top_n_words: 20
@@ -229,16 +229,16 @@ stages:
     outs:
     - path: output/metrics/predict.json
       hash: md5
-      md5: 89066fc7c63bad86afef3263c51ddc0a
+      md5: 4bfa9dee7a9b11a2ea4bf7af0f5c57b0
       size: 34
     - path: output/predicted_topics.parquet
       hash: md5
-      md5: 788e2ec6395abbec2bfba79ffb22f754
-      size: 17342223367
+      md5: dd77cc0e09cb247acd6ffc6d2d82860a
+      size: 17777531686
     - path: output/predicted_topics_agg.parquet
       hash: md5
-      md5: d49621098a607fb6db25bcfd18eb2b22
-      size: 1752900959
+      md5: a9aae5ad8955077bfb489423f0be5f4f
+      size: 1728468534
   evaluate:
     cmd: "POLARS_MAX_THREADS=8 OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 OPENBLAS_NUM_THREADS=8
       NUMEXPR_NUM_THREADS=8 conda run -n topicmodel312_llama_1 --no-capture-output
@@ -270,7 +270,7 @@ stages:
       size: 32
     - path: output/metrics/predict.json
       hash: md5
-      md5: 89066fc7c63bad86afef3263c51ddc0a
+      md5: 4bfa9dee7a9b11a2ea4bf7af0f5c57b0
       size: 34
     - path: output/metrics/prepare.json
       hash: md5
@@ -282,8 +282,8 @@ stages:
       size: 32
     - path: output/predicted_topics_agg.parquet
       hash: md5
-      md5: d49621098a607fb6db25bcfd18eb2b22
-      size: 1752900959
+      md5: a9aae5ad8955077bfb489423f0be5f4f
+      size: 1728468534
     - path: output/predicted_topics_agg_train.parquet
       hash: md5
       md5: 2f8d42dda5d95c85195a12374826e3e8
@@ -348,7 +348,7 @@ stages:
     outs:
     - path: output/bertopic_model_representation
       hash: md5
-      md5: bd41f2ed97d7fd0a4e62edb782efb5ff.dir
+      md5: dabc4487122f8da4f6530b9f786aed33.dir
       size: 66517130
       nfiles: 3
     - path: output/topic_hierarchy.csv
@@ -357,7 +357,7 @@ stages:
       size: 960347
     - path: output/topic_hierarchy_all_steps.csv
       hash: md5
-      md5: 6f8402a6c2aa183c14ce44f74f3672d1
+      md5: 626faac3f766cfa86014aefac6ee57d7
       size: 94041
     - path: output/topic_info.csv
       hash: md5

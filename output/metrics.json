@@ -2,14 +2,14 @@
     "prepare.py": "0.42 hours",
     "embed.py": "5.50 hours",
     "train.py": "2.93 hours",
-    "predict.py": "0.20 hours",
-    "click_share_cv_log_r2": "0.1873",
-    "click_share_cv_log_n_selected": 150,
-    "click_share_male_cv_log_r2": "0.2384",
-    "click_share_male_cv_log_n_selected": 130,
-    "click_share_fem_cv_log_r2": "0.1723",
-    "click_share_fem_cv_log_n_selected": 157,
+    "predict.py": "0.16 hours",
+    "click_share_cv_log_r2": "0.1584",
+    "click_share_cv_log_n_selected": 239,
+    "click_share_male_cv_log_r2": "0.1997",
+    "click_share_male_cv_log_n_selected": 228,
+    "click_share_fem_cv_log_r2": "0.1376",
+    "click_share_fem_cv_log_n_selected": 246,
     "step": 0,
     "#Topics": 284,
-    "evaluate.py": "3.34 hours"
+    "evaluate.py": "3.83 hours"
 }
