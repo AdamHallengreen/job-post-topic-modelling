@@ -1,23 +1,22 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
+#     "claude-agent-sdk",
 #     "pydantic-ai-slim[anthropic]>=2.66.0",
 #     "polars[calamine]>=1.32.2",
 # ]
 # ///
-"""Code Jobnet job posts for working hours, flexibility and job traits with Claude.
+"""Code Jobnet job posts with Claude.
 
-prompt.txt is sent as the (cached) system prompt and each post in data/Jobnet.xlsx (Title + Text)
-as the user message. The API forces the reply to match the JobPostCoding schema below: 16 items
-with a quote and a 0/1 flag, plus a validity flag. Results are appended to a JSONL checkpoint as
-they arrive, so an interrupted run resumes where it stopped, and are exported to a wide parquet
-file at the end.
+For each post in data/Jobnet.xlsx, Claude reads the instructions in prompt.txt and the post, and
+answers in the JobPostCoding format below: for each of 15 items, a quote from the post and a 0/1.
 
-Run from the repo root (real runs need ANTHROPIC_API_KEY):
-    uv run scripts/llm_topics/annotate_jobnet.py --dry-run   # show prompt + schema, no API call
-    uv run scripts/llm_topics/annotate_jobnet.py --n 50      # pilot on a random sample
-    uv run scripts/llm_topics/annotate_jobnet.py             # all posts, live requests
-    uv run scripts/llm_topics/annotate_jobnet.py --batch     # all posts, Batch API (50% cheaper, slower)
+    uv run scripts/llm_topics/annotate_jobnet.py --n 50   # pilot: a random sample of 50 posts
+    uv run scripts/llm_topics/annotate_jobnet.py          # all posts
+    add --api to pay per token with ANTHROPIC_API_KEY instead of using your Claude subscription
+
+Every answer is saved as soon as it arrives, so running the same command again continues where
+the last run stopped. See README.md in this folder for the full guide.
 """
 
 import argparse
@@ -28,30 +27,36 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, get_args
+from typing import Literal
 
 import polars as pl
-from anthropic import AsyncAnthropic
+from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
 from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
-from pydantic_ai.capabilities import BatchModelRequests
-from pydantic_ai.exceptions import ModelHTTPError
-from pydantic_ai.models.anthropic import AnthropicEffort, AnthropicModel, AnthropicModelSettings
-from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+# --- Settings: edit these to try another model or effort level --------------------------------
+
+MODEL = "claude-haiku-5-5"
+EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "low"  # how much Claude thinks first
+POSTS_AT_A_TIME = 3  # posts sent in parallel; keep this low on a subscription
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[1]
 DATA_PATH = ROOT / "data" / "Jobnet.xlsx"
-PROMPT_PATH = SCRIPT_DIR / "prompt.txt"
-DEFAULT_OUT_DIR = ROOT / "data" / "llm_topics"
-DEFAULT_MODEL = "claude-haiku-5-5"
-MAX_TOKENS = 4000  # reply is ~300 tokens; the rest is room for thinking
-FATAL_STATUS = {401, 403, 404}  # bad key, no access, unknown model: stop instead of failing every post
+SYSTEM_PROMPT = (SCRIPT_DIR / "prompt.txt").read_text(encoding="utf-8").strip()
+
+# One output folder per model, effort and version of prompt.txt, so different setups never mix.
+PROMPT_ID = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()[:8]
+OUT_DIR = ROOT / "data" / "llm_topics" / f"{MODEL}_{EFFORT}_prompt-{PROMPT_ID}"
+RESULTS = OUT_DIR / "results.jsonl"  # one line per coded post
+ERRORS = OUT_DIR / "errors.jsonl"  # one line per failed attempt
+TABLE = OUT_DIR / "results.parquet"  # one wide row per coded post, rebuilt after every run
 
 
-# --- Output schema ------------------------------------------------------------------------------
-# Field names match prompt.txt. Fields are generated in the order written, so `evidence` comes
-# before `present`: the model has to find a quote before it decides.
+# --- The answer format --------------------------------------------------------------------------
+# Field names match prompt.txt. Claude writes the fields in this order, so it has to find a quote
+# (`evidence`) before it decides (`present`).
 
 
 class Item(BaseModel):
@@ -99,195 +104,207 @@ class JobPostCoding(BaseModel):
     valid: Validity
 
 
-# --- Inputs -------------------------------------------------------------------------------------
+# --- Posts --------------------------------------------------------------------------------------
 
 
-def load_posts(path: Path) -> pl.DataFrame:
-    """Load posts with a 0-based `row` key (sheet order); ID is not unique, so it is only carried along."""
+def load_posts() -> pl.DataFrame:
+    """All posts with text, plus a `row` number (0 = first post in the sheet), since ID isn't unique."""
     cols = ["ID", "Title", "Text"]
-    df = (
-        pl.read_excel(path, columns=cols, schema_overrides=dict.fromkeys(cols, pl.String))
-        .with_row_index("row")
-        .with_columns(pl.col("row").cast(pl.Int64), pl.col("Title", "Text").fill_null(""))
+    posts = pl.read_excel(DATA_PATH, columns=cols, schema_overrides=dict.fromkeys(cols, pl.String))
+    posts = posts.with_row_index("row").with_columns(pl.col("row").cast(pl.Int64), pl.col(cols).fill_null(""))
+    return posts.filter(pl.col("Text").str.strip_chars() != "")
+
+
+def post_text(post: dict) -> str:
+    return f"{post['Title'].strip()}\n\n{post['Text'].strip()}".strip()
+
+
+def user_message(post: dict) -> str:
+    return f"<job_post>\n{post_text(post)}\n</job_post>"
+
+
+# --- Option 1 (default): your Claude subscription, through Claude Code -------------------------
+# The Claude Agent SDK runs Claude Code, logged in with your Pro/Max account, once per post.
+# The options switch off everything Claude Code normally loads (tools, your plugins and hooks,
+# claude.ai connectors, CLAUDE.md, memory), so Claude sees only prompt.txt and the post.
+
+
+def subscription_options() -> ClaudeAgentOptions:
+    os.environ.pop("ANTHROPIC_API_KEY", None)  # if set, a key would be used (and billed) instead
+    return ClaudeAgentOptions(
+        model=MODEL,
+        effort=EFFORT,
+        system_prompt=SYSTEM_PROMPT,  # replaces Claude Code's own system prompt
+        output_format={"type": "json_schema", "schema": JobPostCoding.model_json_schema()},
+        tools=[],
+        setting_sources=[],
+        env={
+            "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+            "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+            "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+        },
+        extra_args={"no-session-persistence": None, "strict-mcp-config": None, "disable-slash-commands": None},
     )
-    empty = pl.col("Text").str.strip_chars() == ""
-    print(f"Loaded {df.height:,} posts; skipping {df.filter(empty).height} with empty Text")
-    return df.filter(~empty)
 
 
-def user_prompt(post: dict) -> str:
-    body = "\n\n".join(part for part in (post["Title"].strip(), post["Text"].strip()) if part)
-    return f"<job_post>\n{body}\n</job_post>"
+async def code_with_subscription(options: ClaudeAgentOptions, post: dict) -> dict:
+    answer = None
+    async for message in query(prompt=user_message(post), options=options):
+        if isinstance(message, ResultMessage):  # the final message: the answer and token counts
+            answer = message
+    if answer is None or answer.structured_output is None:
+        raise RuntimeError(answer.result if answer else "Claude Code ended without an answer")
+    usage = answer.usage or {}
+    cached = usage.get("cache_read_input_tokens", 0) + usage.get("cache_creation_input_tokens", 0)
+    return {
+        "output": JobPostCoding.model_validate(answer.structured_output).model_dump(),
+        "input_tokens": usage.get("input_tokens", 0) + cached,
+        "output_tokens": usage.get("output_tokens", 0),
+    }
 
 
-def make_agent(
-    instructions: str, model: str, effort: AnthropicEffort, concurrency: int, batch: bool
-) -> Agent[None, JobPostCoding]:
-    client = AsyncAnthropic(max_retries=8)  # retries 429/5xx with backoff
+# --- Option 2 (--api): the Anthropic API, through PydanticAI -----------------------------------
+# A PydanticAI Agent bundles three things: which model to call, the instructions (system prompt)
+# and the type the answer must have. `await agent.run(text)` sends one request and returns the
+# answer as a JobPostCoding object in `result.output`. Needs ANTHROPIC_API_KEY.
+
+
+def api_agent() -> Agent[None, JobPostCoding]:
+    os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # hide PydanticAI's welcome banner
     return Agent(
-        AnthropicModel(model, provider=AnthropicProvider(anthropic_client=client)),
-        instructions=instructions,  # system prompt, identical for every post
-        output_type=NativeOutput(JobPostCoding),  # the API enforces this JSON schema
+        f"anthropic:{MODEL}",
+        instructions=SYSTEM_PROMPT,
+        output_type=NativeOutput(JobPostCoding),  # the API itself makes the answer match the format
         model_settings=AnthropicModelSettings(
-            max_tokens=MAX_TOKENS,
-            anthropic_effort=effort,
-            anthropic_cache_instructions=True,  # system prompt is read from cache after the first post
+            anthropic_effort=EFFORT,
+            anthropic_cache_instructions=True,  # after the first post, the prompt costs ~10%
         ),
-        # In batch mode every pending run must be able to queue its request, so no concurrency cap.
-        max_concurrency=None if batch else concurrency,
-        capabilities=[BatchModelRequests()] if batch else None,
     )
 
 
-# --- Checkpoint files ---------------------------------------------------------------------------
-
-
-def read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    with path.open(encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
-
-
-def load_done_rows(raw_path: Path, prompt_sha: str) -> set[int]:
-    records = read_jsonl(raw_path)
-    if any(r["prompt_sha256"] != prompt_sha for r in records):
-        sys.exit(f"{raw_path} was made with a different prompt.txt. Use another --out-dir or move the file.")
-    return {r["row"] for r in records}
-
-
-def export_parquet(raw_path: Path, parquet_path: Path) -> None:
-    rows = []
-    for rec in {r["row"]: r for r in read_jsonl(raw_path)}.values():  # one record per row
-        out = {"row": rec["row"], "ID": rec["ID"], "Title": rec["Title"]}
-        output = rec["output"]
-        for group, items in output.items():
-            if group == "valid":
-                continue
-            for name, item in items.items():
-                out[name] = item["present"]
-                out[f"{name}_evidence"] = item["evidence"]
-        out["valid"] = output["valid"]["is_job_post"]
-        out["valid_reason"] = output["valid"]["reason"]
-        for key in ("model", "effort", "prompt_sha256", "input_tokens", "cache_read_tokens", "output_tokens"):
-            out[key] = rec.get(key)
-        rows.append(out)
-    if not rows:
-        print(f"No results in {raw_path} yet; nothing to export.")
-        return
-    pl.from_dicts(rows, infer_schema_length=None).sort("row").write_parquet(parquet_path)
-    print(f"Wrote {len(rows):,} coded posts to {parquet_path}")
+async def code_with_api(agent: Agent[None, JobPostCoding], post: dict) -> dict:
+    result = await agent.run(user_message(post))
+    return {
+        "output": result.output.model_dump(),
+        "input_tokens": result.usage.input_tokens,
+        "output_tokens": result.usage.output_tokens,
+    }
 
 
 # --- Running ------------------------------------------------------------------------------------
 
 
-async def code_post(agent: Agent[None, JobPostCoding], post: dict) -> tuple[dict, dict | Exception]:
-    """Code one post. Returns the post and either the result fields or the exception."""
-    try:
-        result = await agent.run(user_prompt(post))
-    except Exception as exc:
-        return post, exc
-    usage = result.usage
-    return post, {
-        "output": result.output.model_dump(),
-        "input_tokens": usage.input_tokens,  # includes cache_read_tokens
-        "cache_read_tokens": usage.cache_read_tokens,
-        "output_tokens": usage.output_tokens,
-    }
+def read_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-async def run_posts(agent: Agent[None, JobPostCoding], todo: list[dict], meta: dict, out: dict) -> None:
-    tasks = [asyncio.create_task(code_post(agent, post)) for post in todo]
-    n_ok = n_err = 0
-    totals = {"input_tokens": 0, "cache_read_tokens": 0, "output_tokens": 0}
-    with out["raw"].open("a", encoding="utf-8") as raw, out["errors"].open("a", encoding="utf-8") as errors:
-        for i, done in enumerate(asyncio.as_completed(tasks), start=1):
-            post, result = await done
-            record = {"row": post["row"], "ID": post["ID"], "Title": post["Title"], **meta}
-            record["time"] = datetime.now(UTC).isoformat(timespec="seconds")
-            if isinstance(result, Exception):
-                n_err += 1
-                errors.write(json.dumps({**record, "error": repr(result)}, ensure_ascii=False) + "\n")
-                errors.flush()
-                if isinstance(result, ModelHTTPError) and result.status_code in FATAL_STATUS:
-                    sys.exit(f"Stopping: {result!r}")
+def append_jsonl(path: Path, record: dict) -> None:
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+async def code_posts(posts: list[dict], code, client) -> None:
+    """Code the posts a few at a time and save each answer (or error) right away."""
+    n_failed = 0
+    for start in range(0, len(posts), POSTS_AT_A_TIME):
+        group = posts[start : start + POSTS_AT_A_TIME]
+        # Send the group in parallel. return_exceptions=True: a failed post gives its error
+        # instead of stopping the others.
+        answers = await asyncio.gather(*(code(client, post) for post in group), return_exceptions=True)
+        for post, answer in zip(group, answers, strict=True):
+            record = {"row": post["row"], "time": datetime.now(UTC).isoformat(timespec="seconds")}
+            if isinstance(answer, BaseException):
+                n_failed += 1
+                append_jsonl(ERRORS, {**record, "error": repr(answer)})
             else:
-                n_ok += 1
-                for key in totals:
-                    totals[key] += result[key]
-                raw.write(json.dumps({**record, **result}, ensure_ascii=False) + "\n")
-                raw.flush()
-            if i % 50 == 0 or i == len(todo):
-                print(f"  {i:,}/{len(todo):,} done ({n_err} errors)")
-    if n_ok:
-        means = ", ".join(f"{key} {value / n_ok:,.0f}" for key, value in totals.items())
-        print(f"Mean tokens per post: {means}")
-    if n_err:
-        print(f"{n_err} posts failed (see {out['errors']}); re-run the same command to retry them.")
+                append_jsonl(RESULTS, {**record, **answer})
+        print(f"  {start + len(group):,}/{len(posts):,} posts, {n_failed} failed", end="\r")
+        if all(isinstance(answer, BaseException) for answer in answers):
+            # Usually the usage limit, a login problem or a wrong model name, which no retry fixes.
+            print(f"\nStopping: every post in the last group failed. Last error: {answers[-1]!r}")
+            return
+    print()
 
 
-def dry_run(instructions: str, posts: pl.DataFrame) -> None:
-    """Print what would be sent for the first post, without calling the API."""
-    post = posts.row(0, named=True)
-    print("=== System prompt (prompt.txt) ===")
-    print(instructions)
-    print(f"\n=== User message (row {post['row']}, ID {post['ID']}) ===")
-    print(user_prompt(post))
-    print("\n=== Output schema enforced by the API ===")
-    print(json.dumps(JobPostCoding.model_json_schema(), indent=2))
+# --- Export -------------------------------------------------------------------------------------
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Anthropic model id (default: %(default)s)")
-    parser.add_argument(
-        "--effort", default="low", choices=get_args(AnthropicEffort), help="Thinking effort (default: %(default)s)"
-    )
-    parser.add_argument("--n", type=int, help="Code a random sample of N posts instead of all of them")
-    parser.add_argument("--seed", type=int, default=42, help="Seed for the --n sample (default: %(default)s)")
-    parser.add_argument("--concurrency", type=int, default=8, help="Parallel live requests (default: %(default)s)")
-    parser.add_argument("--batch", action="store_true", help="Use the Batch API (50%% cheaper, up to 24h)")
-    parser.add_argument(
-        "--out-dir", type=Path, default=DEFAULT_OUT_DIR, help="Output folder (default: data/llm_topics)"
-    )
-    parser.add_argument("--dry-run", action="store_true", help="Print the prompt for one post; no API call")
-    parser.add_argument("--export-only", action="store_true", help="Only rebuild the parquet from saved results")
-    return parser.parse_args()
+def simplify(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def quote_found(quote: str, text: str) -> bool | None:
+    """True if the quote occurs in the post (ignoring case and spacing); None if there is no quote."""
+    quote = simplify(quote).strip(" .\"'")
+    return quote in simplify(text) if quote else None
+
+
+def export(posts: pl.DataFrame) -> None:
+    """Write one wide row per coded post: <item>, <item>_evidence and <item>_quote_ok for each item."""
+    answers = {record["row"]: record for record in read_jsonl(RESULTS)}
+    rows = []
+    for post in posts.iter_rows(named=True):
+        if post["row"] not in answers:
+            continue
+        answer = answers[post["row"]]
+        output = answer["output"]
+        row = {"row": post["row"], "ID": post["ID"], "Title": post["Title"]}
+        for group, items in output.items():
+            if group == "valid":
+                continue
+            for name, item in items.items():
+                row[name] = item["present"]
+                row[f"{name}_evidence"] = item["evidence"]
+                row[f"{name}_quote_ok"] = quote_found(item["evidence"], post_text(post))
+        row["valid"] = output["valid"]["is_job_post"]
+        row["valid_reason"] = output["valid"]["reason"]
+        row["input_tokens"] = answer["input_tokens"]
+        row["output_tokens"] = answer["output_tokens"]
+        rows.append(row)
+    if not rows:
+        return
+    table = pl.DataFrame(rows, infer_schema_length=None)
+    table.write_parquet(TABLE)
+
+    items = [col.removesuffix("_quote_ok") for col in table.columns if col.endswith("_quote_ok")]
+    summary = pl.DataFrame({
+        "item": items,
+        "share_coded_1": [table[item].mean() for item in items],
+        "quotes_found_in_post": [table[f"{item}_quote_ok"].cast(pl.Boolean).mean() for item in items],
+    })
+    with pl.Config(tbl_rows=-1, tbl_hide_dataframe_shape=True, float_precision=2):
+        print(summary)
+    print(f"Not a job post: {(table['valid'] == 0).sum()} of {table.height}")
+    print(f"Mean tokens per post: {table['input_tokens'].mean():,.0f} in, {table['output_tokens'].mean():,.0f} out")
+    print(f"Wrote {table.height:,} coded posts to {TABLE}")
 
 
 def main() -> None:
-    os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
-    args = parse_args()
-    tag = f"{args.model}_{args.effort}"
-    out = {
-        "raw": args.out_dir / f"raw_{tag}.jsonl",
-        "errors": args.out_dir / f"errors_{tag}.jsonl",
-        "parquet": args.out_dir / f"jobnet_llm_{tag}.parquet",
-    }
-    if args.export_only:
-        export_parquet(out["raw"], out["parquet"])
-        return
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--n", type=int, help="code a random sample of N posts (a pilot) instead of all posts")
+    parser.add_argument("--api", action="store_true", help="use ANTHROPIC_API_KEY instead of your subscription")
+    args = parser.parse_args()
 
-    instructions = PROMPT_PATH.read_text(encoding="utf-8").strip()
-    prompt_sha = hashlib.sha256(instructions.encode("utf-8")).hexdigest()
-
-    posts = load_posts(DATA_PATH)
-    if args.n is not None:
-        posts = posts.sample(n=min(args.n, posts.height), seed=args.seed, shuffle=True)
-    if args.dry_run:
-        dry_run(instructions, posts)
-        return
-
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    done = load_done_rows(out["raw"], prompt_sha)
+    all_posts = load_posts()
+    posts = all_posts.sample(min(args.n, all_posts.height), seed=42) if args.n else all_posts
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    done = {record["row"] for record in read_jsonl(RESULTS)}
     todo = posts.filter(~pl.col("row").is_in(list(done))).to_dicts()
-    print(f"{args.model} (effort {args.effort}): {posts.height - len(todo):,} already coded, {len(todo):,} to go")
+    print(f"{MODEL}, effort {EFFORT}: {posts.height - len(todo):,} posts already coded, {len(todo):,} to go")
+
     if todo:
-        agent = make_agent(instructions, args.model, args.effort, args.concurrency, args.batch)
-        meta = {"model": args.model, "effort": args.effort, "prompt_sha256": prompt_sha}
-        asyncio.run(run_posts(agent, todo, meta, out))
-    export_parquet(out["raw"], out["parquet"])
+        if args.api:
+            asyncio.run(code_posts(todo, code_with_api, api_agent()))
+        else:
+            asyncio.run(code_posts(todo, code_with_subscription, subscription_options()))
+    export(all_posts)
+
+    done = {record["row"] for record in read_jsonl(RESULTS)}
+    left = posts.filter(~pl.col("row").is_in(list(done))).height
+    if left:
+        sys.exit(f"{left:,} posts are not coded yet. Run the same command again (after a usage limit resets).")
 
 
 if __name__ == "__main__":
