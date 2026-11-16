@@ -11,9 +11,11 @@ There are only two options:
 | `uv run scripts/llm_topics/annotate_jobnet.py --n 200` | Pilot: code a random sample of 200 posts (always the same 200) |
 | `uv run scripts/llm_topics/annotate_jobnet.py` | Code all posts |
 | add `--api` | Pay per token with `ANTHROPIC_API_KEY` instead of using your Claude subscription |
+| add `--model claude-sonnet-5-5` | Use another model than the default (`MODEL` at the top of the script) |
 
-The model, the effort level and how many posts are sent at once are set at the top of the script
-(`MODEL`, `EFFORT`, `POSTS_AT_A_TIME`).
+The effort level and how many posts are sent at once are set at the top of the script (`EFFORT`,
+`POSTS_AT_A_TIME`). To compare models on a pilot, use the DVC experiments in
+[Comparing models with DVC](#comparing-models-with-dvc).
 
 ## How saving works
 
@@ -104,9 +106,102 @@ sheet starts with a header row.
 
 ### Try a different prompt, model or effort
 
-Edit `prompt.txt` (or `MODEL` / `EFFORT` at the top of the script) and run the same pilot again. It goes
-to a new folder, and because `--n 200` always picks the same posts, you can compare the two results post
-by post.
+Edit `prompt.txt` (or `EFFORT` at the top of the script, or pass `--model`) and run the same pilot again.
+It goes to a new folder, and because `--n 200` always picks the same posts, you can compare the two
+results post by post. To compare several models in an organized way, see the next section.
+
+## Comparing models with DVC
+
+The DVC stage `llm_pilot` in `dvc.yaml` codes a pilot of 100 posts. Its two settings are in
+`conf/llm_pilot/default.yaml`: `model` and `n_posts`. Each DVC experiment runs the stage with one model
+and records the model together with summary numbers for those 100 posts
+(`output/metrics/llm_pilot.json`). Afterwards `dvc exp show` puts the experiments side by side, and
+`compare_pilots.py` shows post by post where the models agree.
+
+All three models code the same 100 posts. Their answers are saved in each model's own folder in
+`data/llm_topics/`, the same folders a normal run uses, so a later full run with the winning model
+skips these 100 posts.
+
+### Once, before the first experiment
+
+The repo's DVC cache setting points at the server (`/data/projects/...`). Point it to a local folder on
+this computer. The setting goes in `.dvc/config.local`, which isn't committed, so the server keeps its
+own setting:
+
+```powershell
+uv run dvc config --local cache.dir .dvc/cache
+```
+
+Experiments start from your last commit, so commit the setup first:
+
+```powershell
+git add conf/config.yaml conf/llm_pilot params.yaml dvc.yaml scripts/llm_topics
+git commit -m "Add llm_pilot stage for comparing Claude models"
+```
+
+### Run the three pilots
+
+Run them one at a time. Each takes roughly 5–15 minutes. Run `/usage` in Claude Code before and after
+each one to see how much of your limits each model uses: Opus uses them up much faster than Haiku.
+
+```powershell
+uv run dvc exp run llm_pilot -n pilot-haiku  -S llm_pilot.model=claude-haiku-5-5
+uv run dvc exp run llm_pilot -n pilot-sonnet -S llm_pilot.model=claude-sonnet-5-5
+uv run dvc exp run llm_pilot -n pilot-opus   -S llm_pilot.model=claude-opus-5-5
+```
+
+* `llm_pilot` tells DVC to run only this stage, not the BERTopic pipeline.
+* `-n` names the experiment. `-S` sets a parameter for this experiment only.
+* Don't use `--queue` here. Queued experiments run in a temporary copy of the repo that doesn't have
+  `data/Jobnet.xlsx`, and several at once would use up your limits together.
+* If one stops at the usage limit, the experiment isn't saved, but the posts it coded are. Run the same
+  command after the limit resets and it finishes the rest.
+
+### Compare the results
+
+The summary numbers per experiment:
+
+```powershell
+uv run dvc exp show --only-changed
+```
+
+There is one row per experiment, with the model, `quotes_found_in_post`, `mean_input_tokens`,
+`mean_output_tokens`, `not_job_post` and `share_coded_1` for each item. `--only-changed` hides every
+column that's the same in all experiments, such as all the BERTopic settings.
+
+Then where the models agree, post by post:
+
+```powershell
+uv run scripts/llm_topics/compare_pilots.py
+```
+
+It prints one row per item:
+
+* `share_1 <model>`: share of the 100 posts each model coded 1.
+* `all_agree`: share of posts where all models gave the same code. For rare items this is high anyway,
+  because most codes are 0.
+* `all_agree_when_any_1`: of the posts where at least one model said 1, the share where all of them did.
+  This is the number to watch for rare items.
+
+It also writes `data/llm_topics/pilot_disagreements.csv` (opens in Excel), with one row per post and
+item where the models disagree, each model's code and quote side by side. Reading 20–30 of these tells
+you which model is right more often. If the cheaper model agrees with the most capable one on almost
+everything, use the cheaper one for the full run.
+
+### Afterwards
+
+After the three runs, your workspace holds the settings of the last experiment. To go on with one of
+them, for example Sonnet:
+
+```powershell
+uv run dvc exp apply pilot-sonnet
+git add params.yaml dvc.lock output/metrics/llm_pilot.json
+git commit -m "Pilot: pick claude-sonnet-5-5"
+```
+
+Then run all posts with that model:
+`uv run scripts/llm_topics/annotate_jobnet.py --model claude-sonnet-5-5`, or set `MODEL` at the top of
+the script.
 
 ## Step 3: all posts
 

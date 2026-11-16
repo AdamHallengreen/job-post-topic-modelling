@@ -84,3 +84,6 @@ evaluate:
     oos_prediction: true
     use_cpu: true
     n_levels: 10
+llm_pilot:
+  model: claude-haiku-5-5
+  n_posts: 100

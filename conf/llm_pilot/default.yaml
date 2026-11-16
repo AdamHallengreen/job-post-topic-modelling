@@ -1,0 +1,3 @@
+# Pilot coding of job posts with Claude (stage llm_pilot in dvc.yaml, script scripts/llm_topics/annotate_jobnet.py)
+model: claude-haiku-5-5 # Claude model; change per experiment with -S llm_pilot.model=...
+n_posts: 100 # number of posts in the pilot; the same posts are drawn every time

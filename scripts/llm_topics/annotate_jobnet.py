@@ -14,6 +14,10 @@ answers in the JobPostCoding format below: for each of 15 items, a quote from th
     uv run scripts/llm_topics/annotate_jobnet.py --n 50   # pilot: a random sample of 50 posts
     uv run scripts/llm_topics/annotate_jobnet.py          # all posts
     add --api to pay per token with ANTHROPIC_API_KEY instead of using your Claude subscription
+    add --model claude-sonnet-5-5 to use another model than MODEL below
+
+The DVC stage llm_pilot runs this script with --metrics, which also writes summary numbers for the
+sampled posts to a JSON file, so `dvc exp show` can compare pilots with different models.
 
 Every answer is saved as soon as it arrives, so running the same command again continues where
 the last run stopped. See README.md in this folder for the full guide.
@@ -35,9 +39,9 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
 from pydantic_ai.models.anthropic import AnthropicModelSettings
 
-# --- Settings: edit these to try another model or effort level --------------------------------
+# --- Settings: edit these to try another effort level ------------------------------------------
 
-MODEL = "claude-haiku-5-5"
+MODEL = "claude-haiku-5-5"  # used unless you pass --model
 EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "low"  # how much Claude thinks first
 POSTS_AT_A_TIME = 3  # posts sent in parallel; keep this low on a subscription
 
@@ -45,13 +49,16 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[1]
 DATA_PATH = ROOT / "data" / "Jobnet.xlsx"
 SYSTEM_PROMPT = (SCRIPT_DIR / "prompt.txt").read_text(encoding="utf-8").strip()
-
-# One output folder per model, effort and version of prompt.txt, so different setups never mix.
 PROMPT_ID = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()[:8]
-OUT_DIR = ROOT / "data" / "llm_topics" / f"{MODEL}_{EFFORT}_prompt-{PROMPT_ID}"
-RESULTS = OUT_DIR / "results.jsonl"  # one line per coded post
-ERRORS = OUT_DIR / "errors.jsonl"  # one line per failed attempt
-TABLE = OUT_DIR / "results.parquet"  # one wide row per coded post, rebuilt after every run
+
+
+def output_folder(model: str) -> Path:
+    """One folder per model, effort and version of prompt.txt, so different setups never mix.
+
+    It holds results.jsonl (one line per coded post), errors.jsonl (one line per failed attempt)
+    and results.parquet (one wide row per coded post, rebuilt after every run).
+    """
+    return ROOT / "data" / "llm_topics" / f"{model}_{EFFORT}_prompt-{PROMPT_ID}"
 
 
 # --- The answer format --------------------------------------------------------------------------
@@ -129,10 +136,10 @@ def user_message(post: dict) -> str:
 # claude.ai connectors, CLAUDE.md, memory), so Claude sees only prompt.txt and the post.
 
 
-def subscription_options() -> ClaudeAgentOptions:
+def subscription_options(model: str) -> ClaudeAgentOptions:
     os.environ.pop("ANTHROPIC_API_KEY", None)  # if set, a key would be used (and billed) instead
     return ClaudeAgentOptions(
-        model=MODEL,
+        model=model,
         effort=EFFORT,
         system_prompt=SYSTEM_PROMPT,  # replaces Claude Code's own system prompt
         output_format={"type": "json_schema", "schema": JobPostCoding.model_json_schema()},
@@ -169,10 +176,10 @@ async def code_with_subscription(options: ClaudeAgentOptions, post: dict) -> dic
 # answer as a JobPostCoding object in `result.output`. Needs ANTHROPIC_API_KEY.
 
 
-def api_agent() -> Agent[None, JobPostCoding]:
+def api_agent(model: str) -> Agent[None, JobPostCoding]:
     os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # hide PydanticAI's welcome banner
     return Agent(
-        f"anthropic:{MODEL}",
+        f"anthropic:{model}",
         instructions=SYSTEM_PROMPT,
         output_type=NativeOutput(JobPostCoding),  # the API itself makes the answer match the format
         model_settings=AnthropicModelSettings(
@@ -205,8 +212,8 @@ def append_jsonl(path: Path, record: dict) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-async def code_posts(posts: list[dict], code, client) -> None:
-    """Code the posts a few at a time and save each answer (or error) right away."""
+async def code_posts(posts: list[dict], code, client, folder: Path) -> None:
+    """Code the posts a few at a time and save each answer (or error) in `folder` right away."""
     n_failed = 0
     for start in range(0, len(posts), POSTS_AT_A_TIME):
         group = posts[start : start + POSTS_AT_A_TIME]
@@ -217,9 +224,9 @@ async def code_posts(posts: list[dict], code, client) -> None:
             record = {"row": post["row"], "time": datetime.now(UTC).isoformat(timespec="seconds")}
             if isinstance(answer, BaseException):
                 n_failed += 1
-                append_jsonl(ERRORS, {**record, "error": repr(answer)})
+                append_jsonl(folder / "errors.jsonl", {**record, "error": repr(answer)})
             else:
-                append_jsonl(RESULTS, {**record, **answer})
+                append_jsonl(folder / "results.jsonl", {**record, **answer})
         print(f"  {start + len(group):,}/{len(posts):,} posts, {n_failed} failed", end="\r")
         if all(isinstance(answer, BaseException) for answer in answers):
             # Usually the usage limit, a login problem or a wrong model name, which no retry fixes.
@@ -241,9 +248,9 @@ def quote_found(quote: str, text: str) -> bool | None:
     return quote in simplify(text) if quote else None
 
 
-def export(posts: pl.DataFrame) -> None:
-    """Write one wide row per coded post: <item>, <item>_evidence and <item>_quote_ok for each item."""
-    answers = {record["row"]: record for record in read_jsonl(RESULTS)}
+def make_table(posts: pl.DataFrame, folder: Path) -> pl.DataFrame:
+    """One wide row per coded post: <item>, <item>_evidence and <item>_quote_ok for each item."""
+    answers = {record["row"]: record for record in read_jsonl(folder / "results.jsonl")}
     rows = []
     for post in posts.iter_rows(named=True):
         if post["row"] not in answers:
@@ -264,11 +271,16 @@ def export(posts: pl.DataFrame) -> None:
         row["output_tokens"] = answer["output_tokens"]
         rows.append(row)
     if not rows:
-        return
-    table = pl.DataFrame(rows, infer_schema_length=None)
-    table.write_parquet(TABLE)
+        return pl.DataFrame(schema={"row": pl.Int64})
+    return pl.DataFrame(rows, infer_schema_length=None)
 
-    items = [col.removesuffix("_quote_ok") for col in table.columns if col.endswith("_quote_ok")]
+
+def item_names(table: pl.DataFrame) -> list[str]:
+    return [col.removesuffix("_quote_ok") for col in table.columns if col.endswith("_quote_ok")]
+
+
+def print_summary(table: pl.DataFrame) -> None:
+    items = item_names(table)
     summary = pl.DataFrame({
         "item": items,
         "share_coded_1": [table[item].mean() for item in items],
@@ -278,31 +290,63 @@ def export(posts: pl.DataFrame) -> None:
         print(summary)
     print(f"Not a job post: {(table['valid'] == 0).sum()} of {table.height}")
     print(f"Mean tokens per post: {table['input_tokens'].mean():,.0f} in, {table['output_tokens'].mean():,.0f} out")
-    print(f"Wrote {table.height:,} coded posts to {TABLE}")
+
+
+def average(column: pl.Series, digits: int = 3) -> float:
+    """Mean of a column, skipping empty values; 0 when there are none."""
+    value = column.cast(pl.Float64).mean()
+    return round(value, digits) if isinstance(value, float) else 0.0
+
+
+def write_metrics(table: pl.DataFrame, path: Path) -> None:
+    """Summary numbers for DVC: `dvc exp show` puts them side by side for each experiment."""
+    items = item_names(table)
+    quote_checks = pl.concat([table[f"{item}_quote_ok"].cast(pl.Boolean) for item in items])
+    metrics = {
+        "posts_coded": table.height,
+        "not_job_post": int((table["valid"] == 0).sum()),
+        "quotes_found_in_post": average(quote_checks),
+        "mean_input_tokens": average(table["input_tokens"], digits=0),
+        "mean_output_tokens": average(table["output_tokens"], digits=0),
+        "share_coded_1": {item: average(table[item]) for item in items},
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    print(f"Wrote metrics for {table.height} posts to {path}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--n", type=int, help="code a random sample of N posts (a pilot) instead of all posts")
     parser.add_argument("--api", action="store_true", help="use ANTHROPIC_API_KEY instead of your subscription")
+    parser.add_argument("--model", default=MODEL, help="Claude model (default: %(default)s)")
+    parser.add_argument("--metrics", type=Path, help="also write summary numbers for these posts to this JSON file")
     args = parser.parse_args()
 
     all_posts = load_posts()
     posts = all_posts.sample(min(args.n, all_posts.height), seed=42) if args.n else all_posts
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    done = {record["row"] for record in read_jsonl(RESULTS)}
+    folder = output_folder(args.model)
+    folder.mkdir(parents=True, exist_ok=True)
+    done = {record["row"] for record in read_jsonl(folder / "results.jsonl")}
     todo = posts.filter(~pl.col("row").is_in(list(done))).to_dicts()
-    print(f"{MODEL}, effort {EFFORT}: {posts.height - len(todo):,} posts already coded, {len(todo):,} to go")
+    print(f"{args.model}, effort {EFFORT}: {posts.height - len(todo):,} posts already coded, {len(todo):,} to go")
 
     if todo:
         if args.api:
-            asyncio.run(code_posts(todo, code_with_api, api_agent()))
+            asyncio.run(code_posts(todo, code_with_api, api_agent(args.model), folder))
         else:
-            asyncio.run(code_posts(todo, code_with_subscription, subscription_options()))
-    export(all_posts)
+            asyncio.run(code_posts(todo, code_with_subscription, subscription_options(args.model), folder))
 
-    done = {record["row"] for record in read_jsonl(RESULTS)}
-    left = posts.filter(~pl.col("row").is_in(list(done))).height
+    table = make_table(all_posts, folder)  # every post coded with this setup, also by earlier runs
+    if table.height:
+        table.write_parquet(folder / "results.parquet")
+        print_summary(table)
+        print(f"Wrote {table.height:,} coded posts to {folder / 'results.parquet'}")
+    asked_for = table.filter(pl.col("row").is_in(posts["row"].to_list()))  # coded posts from this sample
+    if args.metrics and asked_for.height:
+        write_metrics(asked_for, args.metrics)
+
+    left = posts.height - asked_for.height
     if left:
         sys.exit(f"{left:,} posts are not coded yet. Run the same command again (after a usage limit resets).")
 
