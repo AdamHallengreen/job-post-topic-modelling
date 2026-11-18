@@ -6,13 +6,15 @@
 
 Run it after the pilot experiments (see README.md in this folder):
 
-    uv run scripts/llm_topics/compare_pilots.py
+    uv run scripts/llm_topics/compare_pilots.py              # all models
+    uv run scripts/llm_topics/compare_pilots.py haiku opus   # only folders whose name contains these
 
 It reads results.parquet from every folder in data/llm_topics made with the current prompt.txt, keeps
 the posts that all of them coded, and prints for each item how often the models agree. The posts where
 they disagree go to data/llm_topics/pilot_disagreements.csv, to read by hand (opens in Excel).
 """
 
+import argparse
 import hashlib
 import sys
 from pathlib import Path
@@ -27,11 +29,16 @@ PROMPT_ID = hashlib.sha256(PROMPT.encode("utf-8")).hexdigest()[:8]
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("models", nargs="*", help="compare only these models, e.g. `haiku opus` (default: all)")
+    args = parser.parse_args()
+
     # One table per model, e.g. {"claude-haiku-5-5_low": <results>, ...}
     tables = {
         folder.name.removesuffix(f"_prompt-{PROMPT_ID}"): pl.read_parquet(folder / "results.parquet")
         for folder in sorted(RESULTS_DIR.glob(f"*_prompt-{PROMPT_ID}"))
         if (folder / "results.parquet").exists()
+        and (not args.models or any(name in folder.name for name in args.models))
     }
     if len(tables) < 2:
         sys.exit(f"Found results for {len(tables)} model(s) with the current prompt.txt; need at least 2.")

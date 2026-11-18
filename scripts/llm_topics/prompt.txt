@@ -1,33 +1,67 @@
 You code Danish job posts from Jobnet. The user message contains one post inside <job_post> tags.
 
-For every item: first copy evidence, then decide present.
-- evidence: a short verbatim quote from the post in Danish (max 10 words) that shows the item. Use "" if there is none.
-- present: 1 only if the post states or clearly implies the item for THIS job; otherwise 0. present must be 0 when evidence is "".
-Do not count generic HR boilerplate ("fleksibel arbejdsplads", "gode kolleger", "spændende opgaver") or text about the company or other roles.
-The Danish words in brackets are typical cues, not a complete list.
+For every item:
+- evidence: a short verbatim quote from the post (max 10 words). Copy it exactly; do not paraphrase or join separate passages. If several passages fit, pick the one that shows the item most clearly. Use "" if there is none.
+- present: 1 only if the post's own words describe the item for THIS job; otherwise 0. Do not infer from what the occupation or industry usually involves. present must be 0 when evidence is "".
 
-IrregularHours
-- Evening: work in the evening, roughly 18-23 [aftenvagt, aftenarbejde, om aftenen].
-- Night: work at night, roughly 23-06 [nattevagt, natarbejde, om natten].
-- Weekends: work on Saturdays or Sundays [weekendvagt, hver anden weekend, lørdag/søndag, helligdage].
-- ShiftWork: shift work or rotating schedules [skiftehold, toholdsskift, treholdsskift, rullende vagter, vagtplan]. A single fixed "vagt" is not enough.
+General rules
+- Code what the post says, and assume the job is as the post describes it. The title is part of the post.
+- An applicant trait counts when it names the item itself ("Du er selvstændig" counts for freedomToMakeDecisions; "kan arbejde under pres" for timePressure). Some items name trait words that do not count.
+- If the company or department says it is busy ("vi har travlt"), assume this job is busy too.
+- Company-wide policies and benefits apply to this job ("Vi tilbyder flekstid og hjemmearbejde").
+- Ignore generic phrases that say nothing about this job ("gode kolleger", "spændende opgaver", "et godt arbejdsmiljø"), text only about the company in general or about other roles, and the post's contact details.
+- Negated mentions are 0 ("ingen weekendarbejde", "kun hverdage").
+- One passage can count for several items.
+- Posts in English: code the same items from the English equivalents (evening/night shifts, weekends, overtime, on-call, flexible hours, deadlines, fast-paced, customer-facing, independently, part-time).
+- The Danish words below are typical cues, not a complete list.
 
-flexibility
-- wfhOptions: option to work from home or remotely [hjemmearbejde, arbejde hjemmefra, remote, hybrid].
-- flexibilityHoursCompany: the employer sets or changes the hours and the worker must adapt [overarbejde, rådighedsvagt, tilkaldevagt, skiftende arbejdstider, efter behov, travle perioder].
-- flexibilityHoursEmployee: the worker chooses or plans own hours [flekstid, fleksible arbejdstider, tilrettelægge din egen arbejdsdag].
-- flexibleTasks: the worker must handle varied or changing tasks [alsidige opgaver, mange forskellige opgaver, hvor der er brug for dig].
+IrregularHours: when the work takes place, for any arrangement, including on-call.
+- Evening: work in the evening, roughly 18-23, even if only occasionally.
+  Counts: aftenvagt, aftenhold, aftenarbejde, om aftenen, dag- og aftenvagt, aftenmøder, enkelte aftener.
+- Night: work at night, roughly 23-06.
+  Counts: nattevagt, natarbejde, om natten, sovevagt, døgnvagt, a shift like 23-07.
+- Weekends: work on Saturdays, Sundays or public holidays.
+  Counts: weekendvagt, hver anden weekend, lørdag, søndag, a range that includes them ("torsdag til lørdag"), helligdage.
+- ShiftWork: work organised in shifts (vagter) or shift teams (hold), fixed or rotating, day shifts included.
+  Counts: any ...vagt or ...hold shift (dagvagt, daghold, toholdsskift, treholdsskift), vagtplan, rullende vagter.
+  Does not count: "hold" meaning a team ("et stærkt hold"); on-call duty (rådighedsvagt, tilkaldevagt) and "skiftende arbejdstider" without vagt or hold. These are flexibilityHoursCompany.
 
-GoldinTraits (Goldin 2014 job characteristics)
-- timePressure: deadlines, fast pace or high tempo [travlt, højt tempo, deadlines, arbejde under pres].
-- contactWithOthers: frequent contact with customers, patients, citizens or colleagues is central to the job [kundekontakt, borgere, telefonen, betjening].
-- interpersonalRelationships: building and maintaining lasting relationships [relationer, netværk, samarbejdspartnere, kunderelationer].
-- structuredWork: tasks, priorities and goals are set for the worker [faste rutiner, efter instruks, procedurer, faste opgaver].
-- freedomToMakeDecisions: the worker decides independently without close supervision [selvstændig, ansvar for egne opgaver, frihed under ansvar, træffe beslutninger].
+flexibility: what the post offers or demands about working hours and place. Decide by who controls the hours: required of the worker (du skal, du er, du kan, vi forventer) is flexibilityHoursCompany; offered to the worker (vi tilbyder, du får, mulighed for) is flexibilityHoursEmployee.
+- wfhOptions: option to work from home or remotely, even partly.
+  Counts: hjemmearbejde, arbejde hjemmefra, remote, hybrid, mulighed for hjemmearbejde efter aftale.
+  Does not count: "fleksibel arbejdsplads" unless home or remote work is named.
+- flexibilityHoursCompany: the employer sets or changes the hours and the worker must adapt.
+  Counts: overarbejde, rådighedsvagt, tilkaldevagt, tilkaldevikar, skiftende arbejdstider, efter behov, travle perioder, træde til med kort varsel, "Du er fleksibel" when it is about working hours ("fleksibel i forhold til arbejdstider").
+  Does not count: a fixed shift plan alone; "Du er fleksibel" with nothing about hours.
+- flexibilityHoursEmployee: the worker chooses or plans their own hours, or the post promises the worker flexibility.
+  Counts: flekstid, fleksible arbejdstider, tilrettelægge din egen arbejdsdag, fleksibel arbejdsplads, rige muligheder for fleksibilitet.
+  Does not count: shift work, including influence on one's own vagtplan; part-time (that is partTime).
+
+GoldinTraits: together these show whether the job is likely to need the worker at particular times, at short notice, or with other people relying on them.
+- timePressure: the job requires meeting strict deadlines, or a pace or workload that implies them.
+  Counts: deadlines, tidsfrister, højt tempo, travlt, travle perioder, arbejde under pres, mange bolde i luften, tidsplanen skal holdes.
+  Does not count: sales or performance targets with no time element ("resultatorienteret", "nå dine mål").
+- contactWithOthers: the job requires the worker to be in contact with others to do it.
+  Counts: serving or advising customers, patients, citizens, children, parents or guests; kundebetjening, kundekontakt, rådgivning; taking calls as part of the job; working with colleagues only when that is the task itself ("tværfagligt samarbejde om borgeren").
+  Does not count: generic teamwork ("godt samarbejde", "trives med teamwork"), communication skills alone ("kommunikere klart"), the post's phone number.
+- interpersonalRelationships: building cooperative working relationships and keeping them over time, so the same people rely on the worker.
+  Counts: egne kunder, kunderelationer, netværk, samarbejdspartnere, following the same citizens or patients over time, samarbejde med forældre.
+  Does not count: one-off contacts (those are only contactWithOthers).
+- structuredWork: the job sets tasks, priorities and goals for the worker, rather than letting the worker decide them.
+  Counts: faste rutiner, faste opgaver, efter instruks, procedurer, faste arbejdsgange, working to a set plan or standard ("alt produceres efter dem").
+  Does not count: the applicant being organised ("du er struktureret", "kan arbejde struktureret"). That describes the person, not how the job is set up.
+- freedomToMakeDecisions: the job lets the worker decide without supervision, such as deciding what each client or case needs rather than being handed a specific task.
+  Counts: selvstændig, arbejder selvstændigt, ansvar for egne opgaver, frihed under ansvar, træffe beslutninger, du vurderer selv.
 
 OtherTraits
-- Administrative: administrative, HR, routine office or clerical work [administration, bogføring, sagsbehandling, journalisering, kontorarbejde].
-- AI: uses or develops artificial intelligence, machine learning or generative AI tools [kunstig intelligens, AI, machine learning, ChatGPT, Copilot].
+- Administrative: clerical work handling paperwork so that rules and regulation are complied with, such as filling out forms, registering and reporting.
+  Counts: udfylde skemaer eller blanketter, registrering, indtastning, indberetning, journalisering, dokumenthåndtering, sagsbehandling, sekretæropgaver, administrative opgaver.
+  Does not count: professional law, accounting or finance work (jurist, revisor, controller, bogføring, regnskab); general office work ("kontorarbejde"); notes written as part of care, teaching or other non-office work ("dagbogsnotater", journalføring i plejen); "administration af medicin".
+- AI: uses or develops artificial intelligence, machine learning or generative AI tools.
+  Counts: kunstig intelligens, AI, machine learning, ChatGPT, Copilot.
+- partTime: the job is part-time, or part-time is offered.
+  Counts: deltid, weekly hours below 37 ("25-30 timer om ugen", "12-15 timer"), fuldtid eller deltid, studiejob, studentermedhjælper, fleksjob.
+  Does not count: temporary or fixed-term jobs (vikariat, barselsvikariat) or hourly pay (timeløn, tilkaldevikar) with no hours stated.
 
 valid
 - is_job_post: 1 if the text advertises a concrete job; 0 if it is something else (company profile, course or education ad, empty template, unsolicited application).

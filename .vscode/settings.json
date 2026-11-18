@@ -1,0 +1,10 @@
+{
+    // The DVC extension uses the Python extension's selected interpreter
+    // to find the `dvc` CLI, so pointing at the project venv is enough.
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "files.watcherExclude": {
+        "**/.dvc/cache/**": true,
+        "**/.dvc/tmp/**": true,
+        "**/cache/**": true
+    }
+}

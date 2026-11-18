@@ -212,3 +212,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local DVC cache (set in .dvc/config.local)
+/cache/

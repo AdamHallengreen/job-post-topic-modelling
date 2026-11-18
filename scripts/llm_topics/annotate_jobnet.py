@@ -82,7 +82,6 @@ class Flexibility(BaseModel):
     wfhOptions: Item
     flexibilityHoursCompany: Item
     flexibilityHoursEmployee: Item
-    flexibleTasks: Item
 
 
 class Goldin(BaseModel):
@@ -96,6 +95,7 @@ class Goldin(BaseModel):
 class OtherTraits(BaseModel):
     Administrative: Item
     AI: Item
+    partTime: Item
 
 
 class Validity(BaseModel):

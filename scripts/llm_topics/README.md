@@ -66,15 +66,16 @@ You should see `5/5 posts, 0 failed` and a table (explained below). Check **`Mea
 the input should be a few thousand tokens (the prompt plus one post). Much more means something extra
 is being sent with every post.
 
-## Step 2: pilot (200 posts)
+## Step 2: pilot (100 posts)
 
 ```powershell
-uv run scripts/llm_topics/annotate_jobnet.py --n 200
+uv run scripts/llm_topics/annotate_jobnet.py --n 100
 ```
 
 ### How long will the full run take on your plan?
 
-Run `/usage` in Claude Code before and after the pilot. The difference is what 200 posts cost. Example:
+
+Run `/usage` in Claude Code before and after the pilot. The difference is what 100 posts cost. Example:
 if they use 8% of the 5-hour limit, one 5-hour window covers about 2,500 posts, so all 10,553 posts take
 about 4–5 windows. Check the weekly percentage the same way.
 
@@ -146,7 +147,6 @@ each one to see how much of your limits each model uses: Opus uses them up much 
 
 ```powershell
 uv run dvc exp run llm_pilot -n pilot-haiku  -S llm_pilot.model=claude-haiku-5-5
-uv run dvc exp run llm_pilot -n pilot-sonnet -S llm_pilot.model=claude-sonnet-5-5
 uv run dvc exp run llm_pilot -n pilot-opus   -S llm_pilot.model=claude-opus-5-5
 ```
 
