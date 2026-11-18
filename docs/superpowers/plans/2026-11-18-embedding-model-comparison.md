@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make seven embedding models selectable per DVC experiment, embed each unique sentence once,
+**Goal:** Make eight embedding models selectable per DVC experiment, embed each unique sentence once,
 improve sentence splitting and training, and add a `score` stage that compares topics with Claude's
 codes.
 
@@ -12,7 +12,7 @@ scripts. Stage scripts (`prepare`, `embed`, `train`, `predict`, new `score`) sta
 orchestrators. `sentence_id` links `data/sentences.parquet` (unique) to `data/texts.parquet`
 (occurrences); every stage joins on it instead of relying on row positions.
 
-**Tech Stack:** Python 3.12, polars, NLTK, sentence-transformers 5.1, BERTopic 0.17.3, HDBSCAN,
+**Tech Stack:** Python 3.12, polars, NLTK, sentence-transformers >=6.1, transformers >=5.18, BERTopic >=0.17.4, HDBSCAN,
 UMAP, DVC (Hydra composition from `conf/`), pytest.
 
 **Spec:** `docs/superpowers/specs/2026-11-18-embedding-model-comparison-design.md`
@@ -21,6 +21,7 @@ UMAP, DVC (Hydra composition from `conf/`), pytest.
 
 - Readability is a hard requirement: plain named steps, short functions with docstrings, no clever
   index juggling. Adam must be able to follow the unique-sentence logic.
+- Local tests and the smoke run use Adam's CPU (`embed.settings.device=cpu`). STAR has a medium GPU of unknown model; code must work on both.
 - Do **not** run prepare/embed/train on all local posts. Only unit tests and the smoke run in Task 9
   (`prepare.settings.nobs=300`, `model2vecdk`).
 - Always L2-normalize embeddings after truncation, in our own code.
@@ -82,10 +83,12 @@ UMAP, DVC (Hydra composition from `conf/`), pytest.
   - `is_heading(sentence: str) -> bool`
   - `is_sensitive(sentence: str) -> bool`
 
-- [ ] **Step 1: Install the environment and remove the broken test**
+- [ ] **Step 1: Upgrade libraries, install, remove the broken test**
 
-Run: `uv sync` then `git rm tests/test_foo.py`
-Expected: `uv run python -m pytest` reports "no tests ran" (exit code 5), not an import error.
+In `pyproject.toml` set `sentence-transformers>=6.1.0`, add `transformers>=5.18.0`, set `bertopic>=0.17.4`. Run `uv lock`, `uv sync`, `git rm tests/test_foo.py`, and regenerate `requirements.txt` with the `uv export` command from the README.
+Run: `uv run python -c "import bertopic, sentence_transformers, transformers; print(sentence_transformers.__version__, transformers.__version__)"` -> versions >=6.1 and >=5.18. Then `uv run python -m pytest` -> "no tests ran" (exit code 5), not an import error.
+If BERTopic fails to import with these versions, stop and report to Adam (EmbeddingGemma 2 depends on them).
+Commit `pyproject.toml`, `uv.lock`, `requirements.txt` and the test removal together as `build: upgrade sentence-transformers and transformers for EmbeddingGemma 2`.
 
 - [ ] **Step 2: Write failing tests in `tests/test_sentences.py`**
 
@@ -286,24 +289,25 @@ git commit -m "feat: prepare writes texts and unique sentences with post_id and 
 
 **Files:**
 - Create: `src/job_post_topic_modelling/embedding_models.py`
-- Create: `conf/embed/model/f2llm_330m.yaml`, `f2llm_160m.yaml`, `embeddinggemma2.yaml`, `e5_large_instruct.yaml`, `e5_base.yaml`, `e5_small.yaml`, `model2vecdk.yaml`
+- Create: `conf/embed/model/f2llm_330m.yaml`, `f2llm_160m.yaml`, `embeddinggemma2.yaml`, `e5_large_instruct.yaml`, `e5_large.yaml`, `e5_base.yaml`, `e5_small.yaml`, `model2vecdk.yaml`, and `conf/embed/settings/star_gpu.yaml` (`device: null`, `batch_size: 128`, `num_workers: 1`, `shard_size: 2_000_000`, `show_progress_bar: True`, `model_dir: "/home/<user>@PROD.SITAD.DK/code/help/installations/"` with a comment to fill in the user)
 - Modify: `conf/embed/model/sentence_transformers_big.yaml`, `sentence_transformers_small.yaml`, `intfloat.yaml`, `GritLM.yaml`, `conf/embed/settings/*.yaml`, `params.yaml`
 - Test: `tests/test_embedding_models.py`
 
 **Interfaces:**
 - Produces:
   - `resolve_device(device: str | None) -> str` returns `"cuda"` if available when `device` is None, else `"cpu"`.
-  - `resolve_dtype(dtype: str | None, device: str, model_name: str) -> torch.dtype | None`. `None` means "library default, pass no `model_kwargs`".
+  - `resolve_dtype(dtype: str | None, device: str, model_name: str, bf16_supported: bool) -> torch.dtype | None`. `None` means "library default, pass no `model_kwargs`". The caller passes `torch.cuda.is_bf16_supported()` on CUDA, `False` otherwise.
   - `resolve_model_path(model_name: str, model_dir: str | None) -> str`
   - `load_embedding_model(model_par: DictConfig, settings: DictConfig, device: str | None = None) -> SentenceTransformer`. The `device` argument overrides `settings.device` (train/predict pass `"cpu"`).
   - `truncate_and_normalize(embeddings: np.ndarray, truncate_dim: int | None) -> np.ndarray`
-  - `encode(model: SentenceTransformer, sentences: list[str], model_par: DictConfig, **encode_kwargs) -> np.ndarray` returns float32 vectors, truncated and normalized.
+  - `encode(model: SentenceTransformer, sentences: list[str], model_par: DictConfig, batch_size: int, **encode_kwargs) -> np.ndarray` returns float32 vectors, truncated and normalized. On `torch.cuda.OutOfMemoryError` it empties the CUDA cache, halves `batch_size`, prints `"GPU out of memory, retrying with batch_size=<n>"` and retries; at batch size 1 it re-raises.
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
 import numpy as np, pytest, torch
-from job_post_topic_modelling.embedding_models import resolve_dtype, resolve_model_path, truncate_and_normalize
+from omegaconf import OmegaConf
+from job_post_topic_modelling.embedding_models import encode, resolve_dtype, resolve_model_path, truncate_and_normalize
 
 def test_truncate_then_normalize():
     emb = np.array([[3.0, 4.0, 12.0], [0.0, 0.0, 5.0]])
@@ -317,13 +321,27 @@ def test_full_size_is_normalized():
     np.testing.assert_allclose(np.linalg.norm(out, axis=1), [1.0])
 
 def test_auto_dtype():
-    assert resolve_dtype("auto", "cuda", "x") == torch.bfloat16
-    assert resolve_dtype("auto", "cpu", "x") == torch.float32
-    assert resolve_dtype(None, "cpu", "x") is None
+    assert resolve_dtype("auto", "cuda", "x", bf16_supported=True) == torch.bfloat16
+    assert resolve_dtype("auto", "cuda", "x", bf16_supported=False) == torch.float32
+    assert resolve_dtype("auto", "cpu", "x", bf16_supported=False) == torch.float32
+    assert resolve_dtype(None, "cpu", "x", bf16_supported=False) is None
+
+def test_encode_halves_batch_on_gpu_out_of_memory():
+    class FakeModel:
+        def __init__(self):
+            self.batch_sizes = []
+        def encode(self, sentences, batch_size, **kwargs):
+            self.batch_sizes.append(batch_size)
+            if batch_size > 16:
+                raise torch.cuda.OutOfMemoryError()
+            return np.ones((len(sentences), 4))
+    model = FakeModel()
+    out = encode(model, ["a", "b"], OmegaConf.create({"truncate_dim": None}), batch_size=64)
+    assert model.batch_sizes == [64, 32, 16] and out.shape == (2, 4)
 
 def test_gemma_refuses_float16():
     with pytest.raises(ValueError, match="float16"):
-        resolve_dtype("float16", "cuda", "google/embeddinggemma-2")
+        resolve_dtype("float16", "cuda", "google/embeddinggemma-2", bf16_supported=True)
 
 def test_model_path():
     assert resolve_model_path("google/embeddinggemma-2", None) == "google/embeddinggemma-2"
@@ -339,7 +357,7 @@ Expected: FAIL with `ModuleNotFoundError`.
 
 `load_embedding_model`:
 - If `model_dir` is set, it sets `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1`.
-- It builds `SentenceTransformer(path, device=..., truncate_dim=model_par.truncate_dim, model_kwargs={"torch_dtype": dtype} if dtype else None)`.
+- It builds `SentenceTransformer(path, device=..., truncate_dim=model_par.truncate_dim, model_kwargs={"torch_dtype": dtype} if dtype else None, config_kwargs=model_par.config_kwargs)`. Check the keyword names against the installed sentence-transformers 6.x docs (in transformers 5 the `model_kwargs` dtype key may be `dtype` instead of `torch_dtype`).
 - When `model_par.prompt` is set, it also passes `prompts={"clustering": prompt}` and `default_prompt_name="clustering"`. This way every `encode` call, including BERTopic's own calls on seed words, uses the same prompt.
 - It sets `model.max_seq_length` when `model_par.max_seq_length` is set.
 - It keeps the existing `use_model2vec` branch, which distils with `StaticEmbedding.from_distillation(path, device, pca_dims)`.
@@ -347,16 +365,17 @@ Expected: FAIL with `ModuleNotFoundError`.
 
 - [ ] **Step 4: Write the model configs**
 
-All configs have the fields `embedding_model`, `prompt`, `truncate_dim`, `max_seq_length`, `dtype`, `use_model2vec`, `pca_dims`. Values (copy exactly):
+All configs have the fields `embedding_model`, `prompt`, `truncate_dim`, `max_seq_length`, `dtype`, `config_kwargs`, `use_model2vec`, `pca_dims`. `config_kwargs` is null everywhere except `embeddinggemma2`, where it is `{vision_config: null, audio_config: null}` (text part only). Values (copy exactly):
 
 | File | embedding_model | prompt | truncate_dim | max_seq_length | dtype |
 |---|---|---|---|---|---|
 | `sentence_transformers_big` | `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | null | null | 128 | auto |
 | `sentence_transformers_small` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | null | null | 128 | auto |
-| `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | null | 256 | 256 | bfloat16 |
-| `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | null | 256 | 256 | bfloat16 |
+| `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | null | 256 | 256 | auto |
+| `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | null | 256 | 256 | auto |
 | `embeddinggemma2` | `google/embeddinggemma-2` | `"task: clustering \| query: "` | null | 256 | auto |
 | `e5_large_instruct` | `intfloat/multilingual-e5-large-instruct` | `"Instruct: Identify the topic of this sentence from a Danish job post\nQuery: "` | null | 256 | auto |
+| `e5_large` | `intfloat/multilingual-e5-large` | `"query: "` | null | 256 | auto |
 | `e5_base` | `intfloat/multilingual-e5-base` | `"query: "` | null | 256 | auto |
 | `e5_small` | `intfloat/multilingual-e5-small` | `"query: "` | null | 256 | auto |
 | `model2vecdk` | `andersborges/model2vecdk` | null | null | null | null |
@@ -370,7 +389,7 @@ All configs have the fields `embedding_model`, `prompt`, `truncate_dim`, `max_se
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `uv run python -m pytest tests/test_embedding_models.py -v`
-Expected: 5 passed.
+Expected: 6 passed.
 
 - [ ] **Step 6: Commit**
 
@@ -731,10 +750,11 @@ Expected: under 0.25% of rows over 100 words, and none of the 25 most frequent s
 
 ```text
 # Embedding comparison on Jobnet.xlsx (run only after the full Claude coding; tune min_cluster_size_share once on mpnet first)
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large_instruct" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large,e5_large_instruct" --force-downstream
 dvc exp run --queue -S "prepare/star=local" -S "embed/model=embeddinggemma2" -S "embed.model.truncate_dim=null,256" --force-downstream
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=f2llm_330m,f2llm_160m" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=f2llm_330m" -S "embed.model.truncate_dim=null,256" --force-downstream
 dvc exp show --only-changed --md
+# On STAR (GPU): add -S "embed/settings=star_gpu" -S "train.settings.umap_seed=false". F2LLM-160M only if F2LLM-330M does well.
 ```
 
 - [ ] **Step 4: Commit**

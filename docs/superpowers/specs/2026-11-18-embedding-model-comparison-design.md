@@ -15,7 +15,7 @@ the unique-sentence logic. Prefer plain, named steps over clever one-liners.
 
 ## Goals
 
-- Seven embedding models, each described by one small config file, selectable with
+- Eight embedding models, each described by one small config file, selectable with
   `dvc exp run -S embed/model=<name>`.
 - Better sentence splitting and cleaning in `prepare.py`.
 - Each unique sentence is embedded once; every copy gets its sentence's topic.
@@ -76,6 +76,7 @@ prompt: "task: clustering | query: "            # null = no prompt
 truncate_dim: null                               # null = full size; Matryoshka models only
 max_seq_length: 256
 dtype: auto                                      # auto | float32 | bfloat16
+config_kwargs: null                              # passed to SentenceTransformer, e.g. to skip encoders
 use_model2vec: false                             # existing option: distil to a static model
 pca_dims: 768                                    # only used with use_model2vec
 ```
@@ -83,16 +84,19 @@ pca_dims: 768                                    # only used with use_model2vec
 | Config file | Model | Full dims | Prompt | truncate_dim | max_seq_length | dtype |
 |---|---|---|---|---|---|---|
 | `sentence_transformers_big` (existing) | `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | 768 | none | null | 128 | auto |
-| `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | 896 | none | 256 | 256 | bfloat16 |
-| `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | check card | none | 256 | 256 | bfloat16 |
+| `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | 896 | none | 256 | 256 | auto |
+| `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | check card | none | 256 | 256 | auto (config only; not in the first round) |
 | `embeddinggemma2` | `google/embeddinggemma-2` | 768 | `task: clustering \| query: ` | null | 256 | auto (never float16) |
 | `e5_large_instruct` | `intfloat/multilingual-e5-large-instruct` | 1024 | `Instruct: Identify the topic of this sentence from a Danish job post\nQuery: ` | null | 256 | auto |
+| `e5_large` | `intfloat/multilingual-e5-large` | 1024 | `query: ` | null | 256 | auto |
 | `e5_base` | `intfloat/multilingual-e5-base` | 768 | `query: ` | null | 256 | auto |
 | `e5_small` | `intfloat/multilingual-e5-small` | 384 | `query: ` | null | 256 | auto |
 | `model2vecdk` | `andersborges/model2vecdk` | 256 (verify) | none | null | n/a | float32 |
 
 Notes:
-- `dtype: auto` = bfloat16 on GPU, float32 on CPU (bfloat16 is slow on many CPUs). Passed as
+- `dtype: auto` = bfloat16 on a GPU that supports it (`torch.cuda.is_bf16_supported()`), otherwise
+  float32; float32 on CPU (bfloat16 is slow on many CPUs). Local tests run on Adam's CPU; STAR has a
+  medium-sized GPU of unknown model, so older GPUs without bfloat16 fall back to float32. Passed as
   `model_kwargs={"torch_dtype": ...}`. Raise a clear error if float16 is ever requested for Gemma.
 - `max_seq_length: 256` is our call: sentences are short (median 13 words), and a shared cap keeps
   speed comparable. mpnet keeps its own limit of 128.
@@ -105,10 +109,19 @@ Notes:
 - Existing configs (`sentence_transformers_small`, `intfloat`, `GritLM`) get the new fields with
   values that keep their current behaviour.
 - EmbeddingGemma 2 (Adam's choice, replaces `embeddinggemma-300m`) is Apache 2.0 and not gated. It is
-  multimodal (740M parameters, of which 270M text), so loading may cost more memory than the text
-  part suggests; the cost metrics will show it.
+  multimodal (740M parameters, of which 270M text). **Load the text part only** (Adam's decision):
+  `config_kwargs: {vision_config: null, audio_config: null}`, as the model card describes.
+- **Library upgrade needed:** EmbeddingGemma 2 requires `sentence-transformers>=6.1` and
+  `transformers>=5.18` (locked today: 5.1.0 and 4.52.1). The upgrade must be checked against
+  BERTopic, and STAR's environment must be rebuilt from a new `requirements.txt`.
 - e5 base and small (Adam's choice) use the plain `query: ` prefix, which the e5 card recommends for
-  symmetric tasks such as clustering. Together with e5-large-instruct they show what model size buys.
+  symmetric tasks such as clustering. Plain `multilingual-e5-large` (Adam's choice) completes a clean
+  size ladder small -> base -> large with the same prefix; e5-large-instruct stays as the instruct variant.
+- F2LLM-160M: config exists, but it is left out of the first round (Adam's choice); run it only if
+  F2LLM-330M does well.
+- **GPU on STAR** (medium size, exact model unknown): embedding runs on GPU there with
+  `embed.settings.device: null` (auto). Batch size is a setting, and when the GPU runs out of memory
+  `embed.py` halves the batch size and retries, printing a message.
 
 ### 2. Loading a model (`embed.py`)
 
