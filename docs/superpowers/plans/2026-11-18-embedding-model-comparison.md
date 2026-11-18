@@ -40,7 +40,7 @@ UMAP, DVC (Hydra composition from `conf/`), pytest.
 1. **Post with no Title / empty Text** (null in Excel): must not crash; the post contributes only
    what it has. → test in Task 2 (`test_title_rows_skip_empty_titles`).
 2. **A sentence that appears in many posts and in both train and non-train sets**: training flag is
-   per unique sentence; every occurrence gets the same topic. → test in Task 5
+   per occurrence (label); in predict every copy of a sentence gets the same topic. → test in Task 5
    (`test_join_on_sentences_gives_every_copy_the_same_topic`).
 3. **Claude quote that spans two sentences or comes from the title**: must still match. → tests in
    Task 8 (`test_match_quote_spanning_sentences`, title row present in fixture).
@@ -479,30 +479,36 @@ git commit -m "feat: embed unique sentences and record embedding cost"
 - Test: `tests/test_train.py`
 
 **Interfaces:**
-- Consumes: `load_embedding_model` (Task 4), `load_pretrained_embeddings(rows=)` and `join_on_sentences` (Task 5).
+- Consumes: `load_embedding_model` (Task 4), `load_pretrained_embeddings(rows=)` (Task 5).
 - Produces:
   - `resolve_cluster_sizes(n_train: int, min_cluster_size_share: float, min_samples_ratio: float, floor: int = 10) -> tuple[int, int]`
-  - `sample_training_ids(n_sentences: int, nobs: int | None, seed: int) -> np.ndarray` returns sorted unique ids. If `nobs` is None or ≥ `n_sentences`, it returns all ids.
+  - `sample_training_rows(n_rows: int, nobs: int | None, seed: int) -> np.ndarray` returns sorted unique row numbers of `texts.parquet` (occurrences). If `nobs` is None or ≥ `n_rows`, it returns all rows.
+  - `expand_to_occurrences(unique_embeddings: np.ndarray, unique_ids: np.ndarray, occurrence_ids: np.ndarray) -> np.ndarray` returns one embedding row per entry in `occurrence_ids`. `unique_embeddings[i]` belongs to `unique_ids[i]`, and `unique_ids` is sorted. Uses `np.searchsorted(unique_ids, occurrence_ids)` with a comment explaining it.
   - `get_dimensionality_reduction_model(par, seed: int, n_jobs: int)` and `get_clustering_model(par, n_train: int, seed: int, n_jobs: int)`
-  - File `models/submodels/training_sentence_ids.npy`
-  - `output/predicted_topics_train.parquet`: per occurrence of a training sentence, with columns `post_id`, `label`, `text`, `sentence_id`, `predicted_topic`, `topic_probability`, `ann_id`, `training_data=True`.
+  - File `models/submodels/training_labels.parquet` (one column `label`)
+  - `output/predicted_topics_train.parquet`: one row per training occurrence, with columns `post_id`, `label`, `text`, `sentence_id`, `predicted_topic`, `topic_probability`, `ann_id`, `training_data=True`.
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-from job_post_topic_modelling.train import resolve_cluster_sizes, sample_training_ids
+from job_post_topic_modelling.train import expand_to_occurrences, resolve_cluster_sizes, sample_training_rows
 
 def test_resolve_cluster_sizes_scales_with_data():
     assert resolve_cluster_sizes(8_000_000, 0.0005, 0.1) == (4000, 400)
-    assert resolve_cluster_sizes(180_000, 0.0005, 0.1) == (90, 9)
+    assert resolve_cluster_sizes(280_000, 0.0005, 0.1) == (140, 14)
     assert resolve_cluster_sizes(1_000, 0.0005, 0.1) == (10, 1)  # floor
 
-def test_sample_training_ids():
-    ids = sample_training_ids(100, nobs=10, seed=42)
-    assert len(ids) == 10 and len(set(ids)) == 10 and list(ids) == sorted(ids)
-    np.testing.assert_array_equal(ids, sample_training_ids(100, nobs=10, seed=42))
-    np.testing.assert_array_equal(sample_training_ids(5, nobs=None, seed=42), np.arange(5))
-    np.testing.assert_array_equal(sample_training_ids(5, nobs=50, seed=42), np.arange(5))
+def test_sample_training_rows():
+    rows = sample_training_rows(100, nobs=10, seed=42)
+    assert len(rows) == 10 and len(set(rows)) == 10 and list(rows) == sorted(rows)
+    np.testing.assert_array_equal(rows, sample_training_rows(100, nobs=10, seed=42))
+    np.testing.assert_array_equal(sample_training_rows(5, nobs=None, seed=42), np.arange(5))
+    np.testing.assert_array_equal(sample_training_rows(5, nobs=50, seed=42), np.arange(5))
+
+def test_expand_to_occurrences_repeats_each_copy():
+    unique_embeddings = np.array([[1.0, 0.0], [0.0, 1.0]])
+    out = expand_to_occurrences(unique_embeddings, unique_ids=np.array([3, 7]), occurrence_ids=np.array([7, 3, 7, 7]))
+    np.testing.assert_array_equal(out, [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]])
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -514,32 +520,32 @@ Expected: FAIL with `ImportError`.
 
 - `HDBSCAN.yaml`: replace `min_cluster_size`/`min_samples` with `min_cluster_size_share: 0.0005` and `min_samples_ratio: 0.1`, and drop `core_dist_n_jobs`.
 - `UMAP.yaml`: drop `n_jobs` and `random_state`, and add the comment: "random_state comes from train.settings.seed; a fixed seed makes UMAP single-threaded. On STAR pass `-S train.settings.umap_seed=false` for speed."
-- `settings/default.yaml`: add `seed: 42`, `umap_seed: true`, `n_jobs: 8`, `reduce_outliers: null` (comment: null = off, or a BERTopic strategy such as `embeddings`), `reduce_outliers_threshold: 0.0`. Add the comment "nobs counts unique sentences".
+- `settings/default.yaml`: add `seed: 42`, `umap_seed: true`, `n_jobs: 8`, `reduce_outliers: null` (comment: null = off, or a BERTopic strategy such as `embeddings`), `reduce_outliers_threshold: 0.0`. Add the comment "nobs counts sentence occurrences (rows of texts.parquet); a sentence repeated N times weighs N times in UMAP/HDBSCAN".
 - Mirror all of this in `params.yaml`.
 
 
 - [ ] **Step 4: Implement in `train.py`**
 
 - `resolve_cluster_sizes` uses `max(floor, round(share * n))` and `max(1, round(ratio * min_cluster_size))`.
-- `sample_training_ids` uses `np.random.default_rng(seed).choice(n, nobs, replace=False)`, sorted.
+- `sample_training_rows` uses `np.random.default_rng(seed).choice(n, nobs, replace=False)`, sorted.
 - `get_clustering_model` passes the resolved sizes and `core_dist_n_jobs=n_jobs` to HDBSCAN, and `random_state=seed` to KMeans.
 - UMAP gets `random_state=seed if par.settings.umap_seed else None`, plus `n_jobs`.
 - Keep everything in `__main__` as named steps:
-  1. Load `sentences.parquet` and `texts.parquet`.
-  2. `ids = sample_training_ids(sentences.height, par.settings.nobs, par.settings.seed)`.
-  3. Load embeddings for those rows only, and the documents for those sentences.
-  4. Print the resolved cluster sizes.
-  5. Fit BERTopic.
+  1. Load `texts.parquet` (occurrences).
+  2. `train_texts = texts[sample_training_rows(texts.height, par.settings.nobs, par.settings.seed)]`.
+  3. `unique_ids = np.unique(train_texts["sentence_id"])`, then load only those embeddings with `load_pretrained_embeddings(..., rows=unique_ids)`.
+  4. `embeddings = expand_to_occurrences(unique_embeddings, unique_ids, train_texts["sentence_id"].to_numpy())`. `documents = train_texts["text"]`. Print the number of occurrences, the number of unique sentences, and the resolved cluster sizes.
+  5. Fit BERTopic on `documents` and `embeddings`. Topics come out per occurrence.
   6. If `reduce_outliers` is set, call `topic_model.reduce_outliers(docs, topics, strategy=..., embeddings=..., threshold=...)`, then `topic_model.update_topics(docs, topics=topics, vectorizer_model=vectorizer_model)`.
-  7. Save the model, the submodels (with `with open(...)`) and `training_sentence_ids.npy`.
-  8. Build `per_sentence` (`sentence_id`, `predicted_topic`, `topic_probability`) and `join_on_sentences(texts, per_sentence)`. The join is inner, so only training sentences remain. Add `training_data=True`.
+  7. Save the model, the submodels (with `with open(...)`) and `training_labels.parquet` (`train_texts.select("label")`).
+  8. `train_texts.with_columns(predicted_topic=topics, topic_probability=probs, ann_id=post_id, training_data=True)`. No join is needed here.
   9. Write the two parquet outputs, using the existing `aggregate_predictions_to_ann_level`.
-  10. Write `train.json` with the time, `n_train_sentences`, `min_cluster_size`, `min_samples`.
+  10. Write `train.json` with the time, `n_train_occurrences`, `n_train_unique_sentences`, `min_cluster_size`, `min_samples`.
 - The embedding model is `load_embedding_model(full_par.embed.model, full_par.embed.settings, device="cpu")`.
 - Delete `rescale`, `UnsupportedAnchorTypeError`, `get_embedding_model_cpu`, and the unused parameters `embeddings` and `stop_words`.
 - `dvc.yaml` train:
   - deps: add `data/sentences.parquet`, `embedding_models.py`.
-  - outs: add `models/submodels/training_sentence_ids.npy`.
+  - outs: add `models/submodels/training_labels.parquet`.
   - Make `output/metrics/train.json` a `metrics:` out with `cache: false`.
   - The `*_NUM_THREADS` values stay 8, matching `n_jobs: 8`.
 
@@ -564,7 +570,7 @@ git commit -m "feat: relative cluster sizes, random training sample, seeds and o
 - Test: `tests/test_predict.py`
 
 **Interfaces:**
-- Consumes: `join_on_sentences`, `load_pretrained_embeddings` (Task 5), `load_embedding_model` (Task 4), `training_sentence_ids.npy` (Task 6).
+- Consumes: `join_on_sentences`, `load_pretrained_embeddings` (Task 5), `load_embedding_model` (Task 4), `training_labels.parquet` (Task 6).
 - Produces (same files as today):
   - `output/predicted_topics.parquet`, now with an `ann_id` column.
   - `output/predicted_topics_agg.parquet`
@@ -599,12 +605,12 @@ Expected: FAIL with `ImportError`.
 - [ ] **Step 3: Implement**
 
 - Replace the inline similarity code in both branches with the two helpers.
-- `__main__` works on `sentences.parquet` (the first `predict.settings.nobs` unique sentences when it is set) and their embeddings. It builds `per_sentence` with `sentence_id`, the topic or `topic_i` columns, and `training_data = sentence_id.is_in(training_ids)`, then calls `join_on_sentences(texts, per_sentence)`.
+- `__main__` works on `sentences.parquet` (the first `predict.settings.nobs` unique sentences when it is set) and their embeddings. It builds `per_sentence` with `sentence_id`, the topic or `topic_i` columns, then calls `join_on_sentences(texts, per_sentence)` and sets `training_data = label.is_in(training_labels)` per occurrence.
 - Keep batching over unique sentences with the existing `batch_mode`/`shard_size` logic.
 - `add_wfh` uses the `ann_id` column directly. Delete `extract_ann_id`.
 - Read `use_cuml` with `par_train.dimensionality_reduction.get("use_cuml", False)`.
 - Embedding model: `load_embedding_model(..., device="cpu")`.
-- `dvc.yaml` predict deps: add `data/texts.parquet`, `data/sentences.parquet`, `data/embeddings/`, `models/submodels/training_sentence_ids.npy`, `embedding_models.py`. Today these are missing even though they are read.
+- `dvc.yaml` predict deps: add `data/texts.parquet`, `data/sentences.parquet`, `data/embeddings/`, `models/submodels/training_labels.parquet`, `embedding_models.py`. Today these are missing even though they are read.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -737,7 +743,7 @@ git commit -m "feat: score stage comparing topics with Claude codes"
 uv run dvc exp run -S "prepare/star=local" -S "prepare.settings.nobs=300" -S "embed/model=model2vecdk" -S "embed.settings.device=cpu" prepare embed train score
 ```
 
-Expected: all four stages finish. `output/metrics/score.json` exists and has `mean_best_topic_f1`. `prepare` prints drop counts and 20 headings. With ~6k unique sentences the floor gives `min_cluster_size` 10.
+Expected: all four stages finish. `output/metrics/score.json` exists and has `mean_best_topic_f1`. `prepare` prints drop counts and 20 headings. With ~8k occurrences the floor gives `min_cluster_size` 10.
 
 If it fails, debug with superpowers:systematic-debugging. Do not raise `nobs` above 300.
 

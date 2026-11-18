@@ -18,7 +18,7 @@ the unique-sentence logic. Prefer plain, named steps over clever one-liners.
 - Eight embedding models, each described by one small config file, selectable with
   `dvc exp run -S embed/model=<name>`.
 - Better sentence splitting and cleaning in `prepare.py`.
-- Each unique sentence is embedded once; every copy gets its sentence's topic.
+- Each unique sentence is embedded once; UMAP and HDBSCAN see every occurrence.
 - A new light `score` stage that compares topics with the Claude codes and writes metrics, so
   `dvc exp show` compares the models.
 - Code that runs both locally (`data/Jobnet.xlsx`, ~10.5k posts) and on STAR (offline, 2M posts).
@@ -44,9 +44,13 @@ the unique-sentence logic. Prefer plain, named steps over clever one-liners.
 - B. A standalone script that loops over the five models. Easy locally, but duplicates
   prepare/embed/train, does not scale to STAR, and the two paths would drift.
 
-Also decided: **train on unique sentences** and map topics back to all copies. Stops repeated lines
-like "Vi tilbyder:" (1,376 copies) from forming dense fake clusters, and trains faster. Trade-off:
-topic sizes and c-TF-IDF words count each sentence once, not by how often it appears.
+Also decided: **embed each unique sentence once, but train on every occurrence** (Adam's decision,
+revising an earlier "train on unique sentences"). The unique embeddings are copied out to one row per
+occurrence before UMAP and HDBSCAN, so a sentence that appears 700 times weighs 700 times in the
+density, topic sizes and c-TF-IDF words. Neither UMAP nor HDBSCAN accepts sample weights, so copying
+rows is the only exact way. Known side effect: a sentence with more copies than UMAP's `n_neighbors`
+(60) only has itself as neighbours and ends up as its own tight island, which HDBSCAN then turns into
+its own (boilerplate) topic. Embedding cost still counts unique sentences only.
 
 ## What exists today (relevant parts)
 
@@ -174,9 +178,10 @@ Done in `prepare.py`, in plain named steps, so later stages never juggle indices
 
 Then:
 - `embed.py` embeds `sentences.parquet` only. Shard row *i* = `sentence_id` *i*.
-- `train.py` fits BERTopic on the first `train.settings.nobs` unique sentences, saves topics per
-  `sentence_id`, then joins them onto `texts.parquet` by `sentence_id` to get per-occurrence and
-  per-post outputs.
+- `train.py` draws a random sample of `train.settings.nobs` **occurrences** (rows of
+  `texts.parquet`), loads the embeddings of the unique sentences in that sample, and copies them out to
+  one row per occurrence (a small named function, `expand_to_occurrences`). BERTopic is fitted on
+  these rows, so topics come out per occurrence directly.
 - `predict.py` keeps today's behaviour: it scores **every** sentence (training ones too, marked with
   `training_data`) with the current `full_p_dist` path and wide `topic_i` probability columns. The
   only change is that it computes this per unique sentence and joins back by `sentence_id`.
@@ -191,7 +196,7 @@ Then:
   `min_cluster_size_share: 0.0005` (share of training sentences) and `min_samples_ratio: 0.1`
   (fraction of `min_cluster_size`). `train.py` turns these into integers in one small, named
   function (with a floor of e.g. 10), prints them, and writes them to `output/metrics/train.json`.
-  Gives ~4,000 on 8M sentences and ~90 on ~180k local unique sentences.
+  Counted in training occurrences: ~4,000 on 8M, ~140 on the ~280k local occurrences.
 - Stay absolute on purpose: UMAP `n_neighbors` (local neighbourhood size, not data size), KMeans
   `n_clusters` (wanted number of topics), `nobs` (memory cap).
 - Tuning (our call): **do not tune on the Claude F1** (would favour mpnet). Set
@@ -201,8 +206,9 @@ Then:
 
 **Other changes:**
 1. **Random training sample** with a fixed seed (`train.settings.seed`) instead of `head(nobs)`, so
-   STAR training is not just the earliest posts. Store which `sentence_id`s were used for training;
-   `predict.py` marks `training_data` from that list instead of `row_nr < nobs`.
+   STAR training is not just the earliest posts. The sample is drawn over occurrences. Store the
+   `label`s used for training; `predict.py` marks `training_data` from that list instead of
+   `row_nr < nobs`.
 2. **Same embedding model in train/predict as in embed**: built with the shared
    `load_embedding_model` (same `truncate_dim`, dtype, prompt), on CPU. Needed so seed-word
    embeddings (guided modeling, next round) have the same size as the sentence embeddings.
