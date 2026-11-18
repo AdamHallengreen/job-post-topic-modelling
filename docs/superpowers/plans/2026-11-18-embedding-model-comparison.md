@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make five embedding models selectable per DVC experiment, embed each unique sentence once,
+**Goal:** Make seven embedding models selectable per DVC experiment, embed each unique sentence once,
 improve sentence splitting and training, and add a `score` stage that compares topics with Claude's
 codes.
 
@@ -24,7 +24,7 @@ UMAP, DVC (Hydra composition from `conf/`), pytest.
 - Do **not** run prepare/embed/train on all local posts. Only unit tests and the smoke run in Task 9
   (`prepare.settings.nobs=300`, `model2vecdk`).
 - Always L2-normalize embeddings after truncation, in our own code.
-- Never float16 for `google/embeddinggemma-300m`.
+- Never float16 for `google/embeddinggemma-2` (any model whose name contains `embeddinggemma`).
 - Same code path locally and on STAR; STAR is offline and loads models from `embed.settings.model_dir`.
 - Output files read by `evaluate.py` keep their names and columns (`ann_id` = `post_id`).
 - Hydra is enabled (`.dvc/config`): `conf/` is the source of truth; `dvc exp run` regenerates
@@ -286,7 +286,7 @@ git commit -m "feat: prepare writes texts and unique sentences with post_id and 
 
 **Files:**
 - Create: `src/job_post_topic_modelling/embedding_models.py`
-- Create: `conf/embed/model/f2llm_330m.yaml`, `f2llm_160m.yaml`, `embeddinggemma.yaml`, `e5_large_instruct.yaml`, `model2vecdk.yaml`
+- Create: `conf/embed/model/f2llm_330m.yaml`, `f2llm_160m.yaml`, `embeddinggemma2.yaml`, `e5_large_instruct.yaml`, `e5_base.yaml`, `e5_small.yaml`, `model2vecdk.yaml`
 - Modify: `conf/embed/model/sentence_transformers_big.yaml`, `sentence_transformers_small.yaml`, `intfloat.yaml`, `GritLM.yaml`, `conf/embed/settings/*.yaml`, `params.yaml`
 - Test: `tests/test_embedding_models.py`
 
@@ -323,11 +323,11 @@ def test_auto_dtype():
 
 def test_gemma_refuses_float16():
     with pytest.raises(ValueError, match="float16"):
-        resolve_dtype("float16", "cuda", "google/embeddinggemma-300m")
+        resolve_dtype("float16", "cuda", "google/embeddinggemma-2")
 
 def test_model_path():
-    assert resolve_model_path("google/embeddinggemma-300m", None) == "google/embeddinggemma-300m"
-    assert resolve_model_path("google/embeddinggemma-300m", "/models").replace("\\", "/") == "/models/google/embeddinggemma-300m"
+    assert resolve_model_path("google/embeddinggemma-2", None) == "google/embeddinggemma-2"
+    assert resolve_model_path("google/embeddinggemma-2", "/models").replace("\\", "/") == "/models/google/embeddinggemma-2"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -355,8 +355,10 @@ All configs have the fields `embedding_model`, `prompt`, `truncate_dim`, `max_se
 | `sentence_transformers_small` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | null | null | 128 | auto |
 | `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | null | 256 | 256 | bfloat16 |
 | `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | null | 256 | 256 | bfloat16 |
-| `embeddinggemma` | `google/embeddinggemma-300m` | `"task: clustering \| query: "` | null | 256 | auto |
+| `embeddinggemma2` | `google/embeddinggemma-2` | `"task: clustering \| query: "` | null | 256 | auto |
 | `e5_large_instruct` | `intfloat/multilingual-e5-large-instruct` | `"Instruct: Identify the topic of this sentence from a Danish job post\nQuery: "` | null | 256 | auto |
+| `e5_base` | `intfloat/multilingual-e5-base` | `"query: "` | null | 256 | auto |
+| `e5_small` | `intfloat/multilingual-e5-small` | `"query: "` | null | 256 | auto |
 | `model2vecdk` | `andersborges/model2vecdk` | null | null | null | null |
 
 - `intfloat.yaml` and `GritLM.yaml` keep `use_model2vec: True` and their `pca_dims`, with all new fields set to `null`.
@@ -729,8 +731,8 @@ Expected: under 0.25% of rows over 100 words, and none of the 25 most frequent s
 
 ```text
 # Embedding comparison on Jobnet.xlsx (run only after the full Claude coding; tune min_cluster_size_share once on mpnet first)
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_large_instruct" --force-downstream
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=embeddinggemma" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large_instruct" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=embeddinggemma2" -S "embed.model.truncate_dim=null,256" --force-downstream
 dvc exp run --queue -S "prepare/star=local" -S "embed/model=f2llm_330m,f2llm_160m" -S "embed.model.truncate_dim=null,256" --force-downstream
 dvc exp show --only-changed --md
 ```

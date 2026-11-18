@@ -15,7 +15,7 @@ the unique-sentence logic. Prefer plain, named steps over clever one-liners.
 
 ## Goals
 
-- Five embedding models, each described by one small config file, selectable with
+- Seven embedding models, each described by one small config file, selectable with
   `dvc exp run -S embed/model=<name>`.
 - Better sentence splitting and cleaning in `prepare.py`.
 - Each unique sentence is embedded once; every copy gets its sentence's topic.
@@ -71,7 +71,7 @@ through the sensitive filter.
 Every config has the same fields:
 
 ```yaml
-embedding_model: "google/embeddinggemma-300m"   # HF id; on STAR also the folder name under model_dir
+embedding_model: "google/embeddinggemma-2"      # HF id; on STAR also the folder name under model_dir
 prompt: "task: clustering | query: "            # null = no prompt
 truncate_dim: null                               # null = full size; Matryoshka models only
 max_seq_length: 256
@@ -85,8 +85,10 @@ pca_dims: 768                                    # only used with use_model2vec
 | `sentence_transformers_big` (existing) | `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` | 768 | none | null | 128 | auto |
 | `f2llm_330m` | `codefuse-ai/F2LLM-v2-330M` | 896 | none | 256 | 256 | bfloat16 |
 | `f2llm_160m` | `codefuse-ai/F2LLM-v2-160M` | check card | none | 256 | 256 | bfloat16 |
-| `embeddinggemma` | `google/embeddinggemma-300m` | 768 | `task: clustering \| query: ` | null | 256 | auto (never float16) |
+| `embeddinggemma2` | `google/embeddinggemma-2` | 768 | `task: clustering \| query: ` | null | 256 | auto (never float16) |
 | `e5_large_instruct` | `intfloat/multilingual-e5-large-instruct` | 1024 | `Instruct: Identify the topic of this sentence from a Danish job post\nQuery: ` | null | 256 | auto |
+| `e5_base` | `intfloat/multilingual-e5-base` | 768 | `query: ` | null | 256 | auto |
+| `e5_small` | `intfloat/multilingual-e5-small` | 384 | `query: ` | null | 256 | auto |
 | `model2vecdk` | `andersborges/model2vecdk` | 256 (verify) | none | null | n/a | float32 |
 
 Notes:
@@ -102,7 +104,11 @@ Notes:
   `use_model2vec` distillation path.
 - Existing configs (`sentence_transformers_small`, `intfloat`, `GritLM`) get the new fields with
   values that keep their current behaviour.
-- Gemma needs the licence accepted on Hugging Face and an `HF_TOKEN` locally.
+- EmbeddingGemma 2 (Adam's choice, replaces `embeddinggemma-300m`) is Apache 2.0 and not gated. It is
+  multimodal (740M parameters, of which 270M text), so loading may cost more memory than the text
+  part suggests; the cost metrics will show it.
+- e5 base and small (Adam's choice) use the plain `query: ` prefix, which the e5 card recommends for
+  symmetric tasks such as clustering. Together with e5-large-instruct they show what model size buys.
 
 ### 2. Loading a model (`embed.py`)
 
