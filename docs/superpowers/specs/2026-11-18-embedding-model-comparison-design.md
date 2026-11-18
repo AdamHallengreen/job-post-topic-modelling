@@ -124,10 +124,12 @@ product, which zero-shot/guided can rely on later.
 1. Before stripping HTML, turn line-break and list tags (`<br>`, `<li>`, `</p>`, `</div>`) into `\n`.
 2. Split paragraphs on any line break (not only blank lines), plus `•` and `*` as today, then NLTK
    `sent_tokenize(language="danish")`.
-3. Drop headings: a sentence is a heading if it ends with `:`, or if it has ≤4 words and does not end
-   with `.` or `!`. Keeps "Vi har flekstid." and "fastansættelse."; drops "Vi tilbyder:",
-   "Hvem er du?", "Om opgaven". Rule is our call; print 20 random dropped examples in the log so it can
-   be checked.
+3. Drop headings: a sentence is a heading if it ends with `:`, or has ≤4 words and ends with `?`, or
+   is in a short list of known headings ("Om opgaven", "Din profil", "Vi tilbyder", ...). Keeps
+   "Vi har flekstid." and short list items such as "Frokostordning"; drops "Vi tilbyder:",
+   "Hvem er du?", "Om opgaven". (Revised while planning: a plain "≤4 words without a full stop" rule
+   would drop amenity list items.) Rule is our call; print 20 random dropped examples in the log so it
+   can be checked.
 4. Sensitive filter: add phone formats `dddd dddd` and `+45 ...`.
 5. Keep the Danish-language filter as is.
 6. Write a `post_id` column explicitly instead of parsing it from `label` later. Locally: the Excel
