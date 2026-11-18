@@ -116,7 +116,7 @@ stages:
   llm_pilot:
     # Code a sample of posts with Claude. Run as an experiment, one per model (see scripts/llm_topics/README.md):
     #   dvc exp run llm_pilot -n pilot-haiku -S llm_pilot.model=claude-haiku-5-5
-    cmd: uv run scripts/llm_topics/annotate_jobnet.py --n ${llm_pilot.n_posts} --model ${llm_pilot.model} --metrics output/metrics/llm_pilot.json
+    cmd: uv run scripts/llm_topics/annotate_jobnet.py --n ${llm_pilot.n_posts} --model ${llm_pilot.model} --effort ${llm_pilot.effort} --metrics output/metrics/llm_pilot.json
     deps:
     - data/Jobnet.xlsx
     - scripts/llm_topics/annotate_jobnet.py

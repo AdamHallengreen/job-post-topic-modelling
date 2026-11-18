@@ -414,3 +414,30 @@ stages:
       hash: md5
       md5: 60ad8d71da8a5ba7385154595924095a
       size: 32
+  llm_pilot:
+    cmd: uv run scripts/llm_topics/annotate_jobnet.py --n 100 --model 
+      claude-haiku-5-5 --effort low --metrics output/metrics/llm_pilot.json
+    deps:
+    - path: data/Jobnet.xlsx
+      hash: md5
+      md5: 26964e5ea3bf422d0f744b6fab9af448
+      size: 13307578
+    - path: scripts/llm_topics/annotate_jobnet.py
+      hash: md5
+      md5: d3c8486b6834effe953127504a0e57c9
+      size: 15658
+    - path: scripts/llm_topics/prompt.txt
+      hash: md5
+      md5: 298eb4663d4dac03cee1abe1de8c9a12
+      size: 7446
+    params:
+      params.yaml:
+        llm_pilot:
+          model: claude-haiku-5-5
+          n_posts: 100
+          effort: low
+    outs:
+    - path: output/metrics/llm_pilot.json
+      hash: md5
+      md5: 267ee058f302c848cc299b7b16c96373
+      size: 598

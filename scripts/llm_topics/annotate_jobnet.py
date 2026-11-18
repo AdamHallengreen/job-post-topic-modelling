@@ -15,6 +15,7 @@ answers in the JobPostCoding format below: for each of 15 items, a quote from th
     uv run scripts/llm_topics/annotate_jobnet.py          # all posts
     add --api to pay per token with ANTHROPIC_API_KEY instead of using your Claude subscription
     add --model claude-sonnet-5-5 to use another model than MODEL below
+    add --effort high to use another effort level than EFFORT below
 
 The DVC stage llm_pilot runs this script with --metrics, which also writes summary numbers for the
 sampled posts to a JSON file, so `dvc exp show` can compare pilots with different models.
@@ -42,7 +43,8 @@ from pydantic_ai.models.anthropic import AnthropicModelSettings
 # --- Settings: edit these to try another effort level ------------------------------------------
 
 MODEL = "claude-haiku-5-5"  # used unless you pass --model
-EFFORT: Literal["low", "medium", "high", "xhigh", "max"] = "low"  # how much Claude thinks first
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+EFFORT: Effort = "low"  # how much Claude thinks first; used unless you pass --effort
 POSTS_AT_A_TIME = 3  # posts sent in parallel; keep this low on a subscription
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -52,13 +54,13 @@ SYSTEM_PROMPT = (SCRIPT_DIR / "prompt.txt").read_text(encoding="utf-8").strip()
 PROMPT_ID = hashlib.sha256(SYSTEM_PROMPT.encode("utf-8")).hexdigest()[:8]
 
 
-def output_folder(model: str) -> Path:
+def output_folder(model: str, effort: Effort) -> Path:
     """One folder per model, effort and version of prompt.txt, so different setups never mix.
 
     It holds results.jsonl (one line per coded post), errors.jsonl (one line per failed attempt)
     and results.parquet (one wide row per coded post, rebuilt after every run).
     """
-    return ROOT / "data" / "llm_topics" / f"{model}_{EFFORT}_prompt-{PROMPT_ID}"
+    return ROOT / "data" / "llm_topics" / f"{model}_{effort}_prompt-{PROMPT_ID}"
 
 
 # --- The answer format --------------------------------------------------------------------------
@@ -136,11 +138,11 @@ def user_message(post: dict) -> str:
 # claude.ai connectors, CLAUDE.md, memory), so Claude sees only prompt.txt and the post.
 
 
-def subscription_options(model: str) -> ClaudeAgentOptions:
+def subscription_options(model: str, effort: Effort) -> ClaudeAgentOptions:
     os.environ.pop("ANTHROPIC_API_KEY", None)  # if set, a key would be used (and billed) instead
     return ClaudeAgentOptions(
         model=model,
-        effort=EFFORT,
+        effort=effort,
         system_prompt=SYSTEM_PROMPT,  # replaces Claude Code's own system prompt
         output_format={"type": "json_schema", "schema": JobPostCoding.model_json_schema()},
         tools=[],
@@ -176,14 +178,14 @@ async def code_with_subscription(options: ClaudeAgentOptions, post: dict) -> dic
 # answer as a JobPostCoding object in `result.output`. Needs ANTHROPIC_API_KEY.
 
 
-def api_agent(model: str) -> Agent[None, JobPostCoding]:
+def api_agent(model: str, effort: Effort) -> Agent[None, JobPostCoding]:
     os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # hide PydanticAI's welcome banner
     return Agent(
         f"anthropic:{model}",
         instructions=SYSTEM_PROMPT,
         output_type=NativeOutput(JobPostCoding),  # the API itself makes the answer match the format
         model_settings=AnthropicModelSettings(
-            anthropic_effort=EFFORT,
+            anthropic_effort=effort,
             anthropic_cache_instructions=True,  # after the first post, the prompt costs ~10%
         ),
     )
@@ -316,26 +318,29 @@ def write_metrics(table: pl.DataFrame, path: Path) -> None:
 
 
 def main() -> None:
+    # Windows writes piped output (e.g. under DVC) as cp1252, which can't print Polars' table borders.
+    sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--n", type=int, help="code a random sample of N posts (a pilot) instead of all posts")
     parser.add_argument("--api", action="store_true", help="use ANTHROPIC_API_KEY instead of your subscription")
     parser.add_argument("--model", default=MODEL, help="Claude model (default: %(default)s)")
+    parser.add_argument("--effort", default=EFFORT, choices=Effort.__args__, help="effort level (default: %(default)s)")
     parser.add_argument("--metrics", type=Path, help="also write summary numbers for these posts to this JSON file")
     args = parser.parse_args()
 
     all_posts = load_posts()
     posts = all_posts.sample(min(args.n, all_posts.height), seed=42) if args.n else all_posts
-    folder = output_folder(args.model)
+    folder = output_folder(args.model, args.effort)
     folder.mkdir(parents=True, exist_ok=True)
     done = {record["row"] for record in read_jsonl(folder / "results.jsonl")}
     todo = posts.filter(~pl.col("row").is_in(list(done))).to_dicts()
-    print(f"{args.model}, effort {EFFORT}: {posts.height - len(todo):,} posts already coded, {len(todo):,} to go")
+    print(f"{args.model}, effort {args.effort}: {posts.height - len(todo):,} posts already coded, {len(todo):,} to go")
 
     if todo:
         if args.api:
-            asyncio.run(code_posts(todo, code_with_api, api_agent(args.model), folder))
+            asyncio.run(code_posts(todo, code_with_api, api_agent(args.model, args.effort), folder))
         else:
-            asyncio.run(code_posts(todo, code_with_subscription, subscription_options(args.model), folder))
+            asyncio.run(code_posts(todo, code_with_subscription, subscription_options(args.model, args.effort), folder))
 
     table = make_table(all_posts, folder)  # every post coded with this setup, also by earlier runs
     if table.height:

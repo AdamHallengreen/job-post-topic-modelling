@@ -1,0 +1,24 @@
+{
+  "posts_coded": 100,
+  "not_job_post": 0,
+  "quotes_found_in_post": 0.994,
+  "mean_input_tokens": 6106.0,
+  "mean_output_tokens": 1467.0,
+  "share_coded_1": {
+    "Evening": 0.18,
+    "Night": 0.11,
+    "Weekends": 0.23,
+    "ShiftWork": 0.28,
+    "wfhOptions": 0.04,
+    "flexibilityHoursCompany": 0.17,
+    "flexibilityHoursEmployee": 0.18,
+    "timePressure": 0.32,
+    "contactWithOthers": 0.63,
+    "interpersonalRelationships": 0.2,
+    "structuredWork": 0.19,
+    "freedomToMakeDecisions": 0.56,
+    "Administrative": 0.1,
+    "AI": 0.02,
+    "partTime": 0.18
+  }
+}
