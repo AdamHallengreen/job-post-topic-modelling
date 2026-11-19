@@ -1,0 +1,8 @@
+embedding_model: "codefuse-ai/F2LLM-v2-330M"
+prompt: null
+truncate_dim: 256
+max_seq_length: 256
+dtype: auto
+config_kwargs: null
+use_model2vec: False
+pca_dims: 256 # This is the dimension used in the pre-trained model. Don't change this.

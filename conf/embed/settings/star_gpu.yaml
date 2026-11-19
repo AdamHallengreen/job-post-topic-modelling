@@ -1,0 +1,7 @@
+show_progress_bar: True
+batch_size: 128
+device: null # use null for auto-detect
+num_workers: 1
+shard_size: 2_000_000
+# Fill in the user: the folder that holds the copied models on STAR
+model_dir: "/home/<user>@PROD.SITAD.DK/code/help/installations/"

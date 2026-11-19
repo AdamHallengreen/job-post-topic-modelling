@@ -3,3 +3,5 @@ batch_size: 768
 device: "cpu"
 num_workers: 5
 shard_size: 1_000_000
+# On STAR, set to the folder that holds the copied models, e.g. /home/<user>@PROD.SITAD.DK/code/help/installations/
+model_dir: null

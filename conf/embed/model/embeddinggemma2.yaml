@@ -1,0 +1,8 @@
+embedding_model: "google/embeddinggemma-2"
+prompt: "task: clustering | query: "
+truncate_dim: null
+max_seq_length: 256
+dtype: auto
+config_kwargs: {vision_config: null, audio_config: null}
+use_model2vec: False
+pca_dims: 768 # This is the dimension used in the pre-trained model. Don't change this.

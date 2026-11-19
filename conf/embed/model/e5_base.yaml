@@ -1,0 +1,8 @@
+embedding_model: "intfloat/multilingual-e5-base"
+prompt: "query: "
+truncate_dim: null
+max_seq_length: 256
+dtype: auto
+config_kwargs: null
+use_model2vec: False
+pca_dims: 768 # This is the dimension used in the pre-trained model. Don't change this.

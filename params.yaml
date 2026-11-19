@@ -13,8 +13,14 @@ embed:
     device: null
     num_workers: 1
     shard_size: 2000000
+    model_dir: null
   model:
     embedding_model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+    prompt: null
+    truncate_dim: null
+    max_seq_length: 128
+    dtype: auto
+    config_kwargs: null
     use_model2vec: false
     pca_dims: 768
 train:

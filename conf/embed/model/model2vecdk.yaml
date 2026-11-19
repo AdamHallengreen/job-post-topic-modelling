@@ -1,0 +1,8 @@
+embedding_model: "andersborges/model2vecdk"
+prompt: null
+truncate_dim: null
+max_seq_length: null
+dtype: null
+config_kwargs: null
+use_model2vec: False
+pca_dims: 256 # This is the dimension used in the pre-trained model. Don't change this.

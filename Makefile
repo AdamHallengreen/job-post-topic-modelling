@@ -13,7 +13,7 @@ check: ## Run code quality tools.
 # 	@echo "🚀 Static type checking: Running ty"
 # 	@uv run ty check
 	@echo "🚀 Checking for obsolete dependencies: Running deptry"
-	@uv run deptry src --per-rule-ignores "DEP002=dvc|polars-lts-cpu|hydra-core|plotly|kaleido|transformers"
+	@uv run deptry src --per-rule-ignores "DEP002=dvc|polars-lts-cpu|hydra-core|plotly|kaleido|transformers,DEP003=torch"
 
 .PHONY: test
 test: ## Test the code with pytest

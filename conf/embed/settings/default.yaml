@@ -3,3 +3,5 @@ batch_size: 64
 device: null # use null for auto-detect
 num_workers: 1
 shard_size: 2_000_000
+# On STAR, set to the folder that holds the copied models, e.g. /home/<user>@PROD.SITAD.DK/code/help/installations/
+model_dir: null
