@@ -50,6 +50,11 @@ KNOWN_HEADINGS = {
     "yderligere oplysninger",
     "kontakt",
     "praktiske oplysninger",
+    "særlige forhold",
+    "arbejdstider",
+    "praktisk information",
+    "sådan søger du jobbet",
+    "løn- og ansættelsesvilkår",
 }
 MAX_WORDS_IN_QUESTION_HEADING = 4
 

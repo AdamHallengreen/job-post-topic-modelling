@@ -41,7 +41,18 @@ def test_paragraph_unit_keeps_lines_within_a_blank_line_block_together():
 
 
 def test_headings_are_detected():
-    for heading in ["Vi tilbyder:", "Hvem er du?", "Om opgaven", "Din profil", "Dine arbejdsopgaver inkluderer:"]:
+    for heading in [
+        "Vi tilbyder:",
+        "Hvem er du?",
+        "Om opgaven",
+        "Din profil",
+        "Dine arbejdsopgaver inkluderer:",
+        "Særlige forhold",
+        "Arbejdstider",
+        "Praktisk information",
+        "Sådan søger du jobbet",
+        "Løn- og ansættelsesvilkår",
+    ]:
         assert is_heading(heading)
 
 
