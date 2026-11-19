@@ -1,4 +1,4 @@
-nobs: # Total number of observations to predict on, set to null to use all observations
+nobs: # Total number of unique sentences to predict on (not occurrences), set to null to use all observations
 clustering: False # Whether to use clustering during prediction
 batch_mode: False # Whether to process data in batches (batch size will be equal to training size)
 full_p_dist: True # Whether to compute the probabilities over all topics for each observation

@@ -30,13 +30,7 @@ stages:
     - output/metrics/embed.json:
         cache: false
   train:
-    cmd: >
-      POLARS_MAX_THREADS=8
-      OMP_NUM_THREADS=8
-      MKL_NUM_THREADS=8
-      OPENBLAS_NUM_THREADS=8
-      NUMEXPR_NUM_THREADS=8
-      python src/job_post_topic_modelling/train.py
+    cmd: python src/job_post_topic_modelling/train.py
     deps:
     - data/texts.parquet
     - data/sentences.parquet
@@ -63,13 +57,7 @@ stages:
     - output/metrics/train.json:
         cache: false
   predict:
-    cmd: >
-      POLARS_MAX_THREADS=8
-      OMP_NUM_THREADS=8
-      MKL_NUM_THREADS=8
-      OPENBLAS_NUM_THREADS=8
-      NUMEXPR_NUM_THREADS=8
-      python src/job_post_topic_modelling/predict.py
+    cmd: python src/job_post_topic_modelling/predict.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
@@ -95,13 +83,7 @@ stages:
     - output/predicted_topics_agg.parquet
     - output/metrics/predict.json
   evaluate:
-    cmd: >
-      POLARS_MAX_THREADS=8
-      OMP_NUM_THREADS=8
-      MKL_NUM_THREADS=8
-      OPENBLAS_NUM_THREADS=8
-      NUMEXPR_NUM_THREADS=8
-      conda run -n topicmodel312_llama_1 --no-capture-output python src/job_post_topic_modelling/evaluate.py
+    cmd: conda run -n topicmodel312_llama_1 --no-capture-output python src/job_post_topic_modelling/evaluate.py
     deps:
     - models/bertopic_model/config.json
     - models/bertopic_model/topic_embeddings.safetensors
@@ -110,6 +92,7 @@ stages:
     - models/submodels/clustering_model.pkl
     - output/predicted_topics_agg_train.parquet
     - output/predicted_topics_agg.parquet
+    - output/predicted_topics_train.parquet
     - src/job_post_topic_modelling/evaluate.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py

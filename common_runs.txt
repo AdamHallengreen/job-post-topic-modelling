@@ -8,6 +8,8 @@ dvc exp run --queue -S "prepare/settings=small"  -S "prepare/star=star" --force-
 
 
 # obsolete: embed.settings.num_workers was removed (sentence-transformers 6 encode does not accept it)
+# batch size sweep only
+dvc exp run --queue score -S "prepare/star=local" -S "embed.settings.batch_size=256,512" --force-downstream
 # dvc exp run --queue -S "prepare/settings=full"  -S "prepare/star=star" -S "embed.settings.num_workers=1,5" -S "embed.settings.batch_size=256,512" --force-downstream
 
 
@@ -94,8 +96,8 @@ make new branch with your changes:
 git checkout -b new-branch-name
 
 # Embedding comparison on Jobnet.xlsx (run only after the full Claude coding; tune min_cluster_size_share once on mpnet first)
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large,e5_large_instruct" --force-downstream
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=embeddinggemma2" -S "embed.model.truncate_dim=null,256" --force-downstream
-dvc exp run --queue -S "prepare/star=local" -S "embed/model=f2llm_330m" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp run --queue score -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large,e5_large_instruct" --force-downstream
+dvc exp run --queue score -S "prepare/star=local" -S "embed/model=embeddinggemma2" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp run --queue score -S "prepare/star=local" -S "embed/model=f2llm_330m" -S "embed.model.truncate_dim=null,256" --force-downstream
 dvc exp show --only-changed --md
-# On STAR (GPU): add -S "embed/settings=star_gpu" -S "train.settings.umap_seed=false". F2LLM-160M only if F2LLM-330M does well.
+# On STAR (GPU): target `evaluate` instead of `score` (score/llm_pilot need the local Jobnet labels and are offline); add -S "embed/settings=star_gpu" -S "train.settings.umap_seed=false". F2LLM-160M only if F2LLM-330M does well.

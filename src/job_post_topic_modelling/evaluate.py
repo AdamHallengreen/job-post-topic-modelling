@@ -4,28 +4,32 @@ import re
 import time
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import polars as pl
-import polars.selectors as cs
-from bertopic import BERTopic
-from bertopic.representation import KeyBERTInspired, LlamaCPP, MaximalMarginalRelevance
-from bertopic.vectorizers import ClassTfidfTransformer
-from dvclive import Live
-from llama_cpp import Llama
-from matplotlib.figure import Figure
-from omegaconf import OmegaConf
-from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import CountVectorizer
+# thread limits; set here instead of in dvc.yaml so the stage also runs under cmd.exe on Windows
+for _name in ("POLARS_MAX_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(_name, "8")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import polars as pl  # noqa: E402
+import polars.selectors as cs  # noqa: E402
+from bertopic import BERTopic  # noqa: E402
+from bertopic.representation import KeyBERTInspired, LlamaCPP, MaximalMarginalRelevance  # noqa: E402
+from bertopic.vectorizers import ClassTfidfTransformer  # noqa: E402
+from dvclive import Live  # noqa: E402
+from llama_cpp import Llama  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
+from omegaconf import OmegaConf  # noqa: E402
+from scipy.sparse import csr_matrix  # noqa: E402
+from sklearn.feature_extraction.text import CountVectorizer  # noqa: E402
 
 # from celer import LassoCV
-from sklearn.linear_model import LassoCV
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import KFold, train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LassoCV  # noqa: E402
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score  # noqa: E402
+from sklearn.model_selection import KFold, train_test_split  # noqa: E402
+from sklearn.preprocessing import StandardScaler  # noqa: E402
 
-from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter  # noqa: E402
 
 try_inter()
 from job_post_topic_modelling.embedding_models import load_embedding_model, resolve_model_path  # noqa: E402
@@ -424,10 +428,10 @@ if __name__ == "__main__":
 
     # load
     print("Loading data...")
-    texts = pl.read_parquet(data_dir / "texts.parquet")
-    if par_train.settings.nobs is not None:
-        texts = texts.head(par_train.settings.nobs)
-    documents = texts["text"].to_list()
+    # The training documents are the rows of predicted_topics_train, in the same order as topic_model.topics_
+    # (train.py samples occurrences at random, so they are not the first nobs rows of texts.parquet)
+    train_predictions = pl.read_parquet(output_dir / "predicted_topics_train.parquet")
+    documents = train_predictions["text"].to_list()
 
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par_train.settings.nobs)
 

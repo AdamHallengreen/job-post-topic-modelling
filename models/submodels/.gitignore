@@ -1,2 +1,3 @@
 dimensionality_reduction_model.pkl
 clustering_model.pkl
+/training_labels.parquet
