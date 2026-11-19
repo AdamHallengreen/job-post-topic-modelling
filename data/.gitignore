@@ -3,4 +3,6 @@
 /embeddings.npy
 /reduced_embeddings.npy
 /embeddings
-/llm_topics/
+/llm_topics/*
+!/llm_topics/*.dvc
+!/llm_topics/.gitignore

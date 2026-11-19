@@ -128,6 +128,20 @@ stages:
     - output/topic_hierarchy_all_steps.csv
     - output/bertopic_model_representation
     always_changed: true
+  score:
+    cmd: python src/job_post_topic_modelling/score.py
+    deps:
+    - output/predicted_topics_train.parquet
+    - models/bertopic_model/topics.json
+    - src/job_post_topic_modelling/score.py
+    - data/llm_topics/claude-opus-5-5_low_prompt-3678b2ac
+    params:
+    - score
+    outs:
+    - output/topics_overview.csv
+    metrics:
+    - output/metrics/score.json:
+        cache: false
   llm_pilot:
     # Code a sample of posts with Claude. Run as an experiment, one per model (see scripts/llm_topics/README.md):
     #   dvc exp run llm_pilot -n pilot-haiku -S llm_pilot.model=claude-haiku-5-5

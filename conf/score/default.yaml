@@ -1,0 +1,2 @@
+labels_path: data/llm_topics/claude-opus-5-5_low_prompt-3678b2ac/results.parquet # Claude codes to compare the topics with
+n_top_words: 10 # top words per topic in topics_overview.csv and topic diversity

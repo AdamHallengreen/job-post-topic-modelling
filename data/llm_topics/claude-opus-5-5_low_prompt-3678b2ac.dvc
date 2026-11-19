@@ -1,0 +1,6 @@
+outs:
+- md5: 0a121f1f74bf33f50c90c09fdd56d53f.dir
+  size: 150317
+  nfiles: 2
+  hash: md5
+  path: claude-opus-5-5_low_prompt-3678b2ac

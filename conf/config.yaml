@@ -14,3 +14,4 @@ defaults:
   - evaluate/label_llm: phi3_medium
   - evaluate/settings: default
   - llm_pilot: default
+  - score: default
