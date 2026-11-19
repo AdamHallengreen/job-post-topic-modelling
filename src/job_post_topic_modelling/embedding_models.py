@@ -30,7 +30,7 @@ def resolve_dtype(dtype: str | None, device: str, model_name: str, bf16_supporte
         return None
     if dtype == "auto":
         return torch.bfloat16 if device == "cuda" and bf16_supported else torch.float32
-    if dtype == "float16" and "embeddinggemma" in model_name:
+    if dtype == "float16" and "embeddinggemma" in model_name.lower():
         raise ValueError(f"{model_name} must not run in float16, use bfloat16 or float32")  # noqa: TRY003
     return DTYPES[dtype]
 
@@ -39,7 +39,11 @@ def resolve_model_path(model_name: str, model_dir: str | None) -> str:
     """Return the hub name, or the local folder holding the copied model when model_dir is set."""
     if model_dir is None:
         return model_name
-    return str(Path(model_dir) / model_name)
+    path = Path(model_dir) / model_name
+    if not path.exists():
+        message = f"embed.settings.model_dir is set but the model folder does not exist: {path}"
+        raise FileNotFoundError(message)
+    return str(path)
 
 
 def load_embedding_model(model_par: DictConfig, settings: DictConfig, device: str | None = None) -> SentenceTransformer:

@@ -64,10 +64,21 @@ def test_gemma_refuses_float16():
         resolve_dtype("float16", "cuda", "google/embeddinggemma-2", bf16_supported=True)
 
 
-def test_model_path():
+def test_gemma_guard_ignores_case():
+    with pytest.raises(ValueError, match="float16"):
+        resolve_dtype("float16", "cuda", "Google/EmbeddingGemma-2", bf16_supported=True)
+
+
+def test_model_path(tmp_path):
     assert resolve_model_path("google/embeddinggemma-2", None) == "google/embeddinggemma-2"
-    path = resolve_model_path("google/embeddinggemma-2", "/models")
-    assert path.replace("\\", "/") == "/models/google/embeddinggemma-2"
+    (tmp_path / "google" / "embeddinggemma-2").mkdir(parents=True)
+    path = resolve_model_path("google/embeddinggemma-2", str(tmp_path))
+    assert path == str(tmp_path / "google" / "embeddinggemma-2")
+
+
+def test_missing_model_folder_is_named_in_the_error(tmp_path):
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        resolve_model_path("google/embeddinggemma-2", str(tmp_path / "missing"))
 
 
 def test_embedding_cost():

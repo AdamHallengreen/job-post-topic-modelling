@@ -99,6 +99,6 @@ if __name__ == "__main__":
     with ((output_dir / "metrics") / "embed.json").open("w") as f:
         metrics = {f"{Path(__file__).name}": f"{hours:.2f} hours"}
         metrics.update(
-            embedding_cost(len(sentences), embed_seconds, vector_dim=sentence_model.get_sentence_embedding_dimension())
+            embedding_cost(len(sentences), embed_seconds, vector_dim=sentence_model.get_embedding_dimension())
         )
         json.dump(metrics, f, indent=4)

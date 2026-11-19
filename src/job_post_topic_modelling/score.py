@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # 1. Load the topics per sentence occurrence, Claude's codes and the topic words
     occurrences = pl.read_parquet(output_dir / "predicted_topics_train.parquet")
     codes = load_claude_codes(project_root / par.labels_path)
-    codes = codes.filter(pl.col("post_id").is_in(occurrences["post_id"]))  # only posts that were in training
+    codes = codes.filter(pl.col("post_id").is_in(occurrences["post_id"].implode()))  # only posts that were in training
     items = item_names(codes)
     topic_model = BERTopic.load(project_root / "models" / "bertopic_model")
 
@@ -175,7 +175,9 @@ if __name__ == "__main__":
     # 3. Evidence quotes, outliers and topic quality
     metrics.update(evidence_shares(occurrences, codes, items))
     is_outlier = pl.col("predicted_topic") == OUTLIER_TOPIC
-    metrics["outlier_share_unique_sentences"] = occurrences.unique("sentence_id").select(is_outlier.mean()).item()
+    metrics["outlier_share_unique_sentences"] = (
+        occurrences.unique("sentence_id", keep="first", maintain_order=True).select(is_outlier.mean()).item()
+    )
     metrics["outlier_share_occurrences"] = occurrences.select(is_outlier.mean()).item()
     topic_ids = sorted(set(occurrences["predicted_topic"].to_list()) - {OUTLIER_TOPIC})
     top_words = [[word for word, _ in topic_model.get_topic(topic)] for topic in topic_ids]
