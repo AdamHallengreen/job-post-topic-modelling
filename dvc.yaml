@@ -76,7 +76,12 @@ stages:
     - models/bertopic_model/topics.json
     - models/submodels/dimensionality_reduction_model.pkl
     - models/submodels/clustering_model.pkl
+    - models/submodels/training_labels.parquet
+    - data/texts.parquet
+    - data/sentences.parquet
+    - data/embeddings/
     - src/job_post_topic_modelling/predict.py
+    - src/job_post_topic_modelling/embedding_models.py
     - src/job_post_topic_modelling/train.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py

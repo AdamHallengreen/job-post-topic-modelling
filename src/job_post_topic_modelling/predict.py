@@ -18,6 +18,7 @@ try_inter()
 from job_post_topic_modelling.embedding_models import load_embedding_model  # noqa: E402
 from job_post_topic_modelling.train import aggregate_predictions_to_ann_level  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
+    join_on_sentences,
     load_danish_stop_words,
     load_pretrained_embeddings,
 )
@@ -26,12 +27,14 @@ from job_post_topic_modelling.utils.miscellaneous import print_params  # noqa: E
 
 
 def add_wfh(texts, topics_wide):
+    """Flag work-from-home mentions per occurrence (wfh_dummy) and per post (max over its occurrences)."""
     pattern = (
         r"\barbejd(e[rts]?|et)?(\s+\S+){0,2}\s+hjemme\s?fra\b"
         # 'arbjd hjemmefra' men fleksibelt iforhold til stavning og op til 2 ord imellem
     )
 
     df = texts.select(
+        c.ann_id,
         c.label,
         wfh_dummy=pl.all_horizontal(
             pl.any_horizontal(
@@ -50,28 +53,48 @@ def add_wfh(texts, topics_wide):
             ~c.text.str.contains_any(["væk hjemmefra", "langt hjemmefra"]),
         ),
     )
-    if False:
-        for label_sample in (
-            df.filter(c.text.str.to_lowercase().str.contains_any(["langt hjemmefra"]))
-            .sample(n=40, with_replacement=True)["label"]
-            .to_list()
-        ):
-            print(df.filter(c.label == label_sample)["text"].item())
 
-    texts = texts.join(df, on="label")
+    texts = texts.join(df.select("label", "wfh_dummy"), on="label")
 
-    df_wide = df.with_columns(ann_id=extract_ann_id(c.label)).group_by("ann_id").agg(c.wfh_dummy.max())
+    df_wide = df.group_by("ann_id").agg(c.wfh_dummy.max())
 
     topics_wide = topics_wide.join(df_wide, on="ann_id")
     return texts, topics_wide
 
 
-def extract_ann_id(expr):
+def topic_similarities(embeddings: np.ndarray, topic_embeddings: np.ndarray, ignore_limit: float | None) -> np.ndarray:
+    """Cosine similarity between each sentence and each topic.
+
+    Negative similarities are set to 0. Sentences whose best similarity is below `ignore_limit`
+    get 0 for every topic.
     """
-    Extracts the first digits until _s
-    which is the ann_id of the label
+    similarities = cosine_similarity(embeddings, topic_embeddings)
+    similarities[similarities < 0] = 0
+    if ignore_limit is not None:
+        ignore_index = np.max(similarities, axis=1) < ignore_limit
+        print(f"Number of ignored sentences in this batch: {np.sum(ignore_index)}")
+        similarities[ignore_index, :] = 0
+    return similarities
+
+
+def best_topics(similarities: np.ndarray, ignore_limit: float | None) -> tuple[np.ndarray, np.ndarray]:
+    """Most similar topic per sentence and its similarity.
+
+    Sentences whose best similarity is below `ignore_limit` get topic -1 and probability 1.0.
     """
-    return expr.str.extract(r"^(\d+)_s", 1)
+    topics = np.argmax(similarities, axis=1)
+    probs = np.take_along_axis(similarities, topics[:, None], axis=1)[:, 0]
+    if ignore_limit is not None:
+        outliers = np.max(similarities, axis=1) < ignore_limit
+        topics[outliers] = -1
+        probs[outliers] = 1.0
+    return topics, probs
+
+
+def batch_ranges(n_sentences: int, shard_size: int):
+    """Yield (start, end) pairs that cover the unique sentences in batches of `shard_size`."""
+    for start_idx in range(0, n_sentences, shard_size):
+        yield start_idx, min(start_idx + shard_size, n_sentences)
 
 
 if __name__ == "__main__":
@@ -92,17 +115,17 @@ if __name__ == "__main__":
     start = time.time()
     print_params(full_par)
 
-    # load
+    # load: predictions are made once per unique sentence (sentence_id i = embedding row i)
     print("Loading data...")
     texts = pl.read_parquet(data_dir / "texts.parquet")
-    texts_train = texts.head(par_train.settings.nobs) if par_train.settings.nobs is not None else texts
-    documents_train = texts_train["text"].to_list()
-
+    sentences = pl.read_parquet(data_dir / "sentences.parquet")
     if par.settings.nobs is not None:
-        texts = texts.head(par.settings.nobs)
-    documents = texts["text"].to_list()
+        sentences = sentences.filter(c.sentence_id < par.settings.nobs)
+    documents = sentences["text"].to_list()
+    sentence_ids = sentences["sentence_id"]
 
     embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
+    training_labels = pl.read_parquet(models_dir / "submodels/training_labels.parquet")["label"]
 
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
@@ -119,7 +142,7 @@ if __name__ == "__main__":
         with open(models_dir / r"submodels/clustering_model.pkl", "rb") as f:
             clustering_model = pickle.load(f)  # noqa: S301
 
-        if par_train.dimensionality_reduction.use_cuml:
+        if par_train.dimensionality_reduction.get("use_cuml", False):
             dimensionality_reduction_model.n_features_in_ = embeddings.shape[1]  # Monkey patch for cuml version
         topic_model.umap_model = dimensionality_reduction_model
         topic_model.hdbscan_model = clustering_model
@@ -129,109 +152,64 @@ if __name__ == "__main__":
         topic_model.hdbscan_model = BaseCluster()
         topic_model.umap_model = BaseDimensionalityReduction()
 
+    n_sentences = len(documents)
     if (par.settings.batch_mode) and (par_train.settings.nobs is not None):
         shard_size = par_train.settings.nobs
         print("Predicting topics in batches...")
     else:
-        print("Predicting topics for all documents at once...")
-        shard_size = len(documents)
+        print("Predicting topics for all unique sentences at once...")
+        shard_size = n_sentences
 
-    stop = par.settings.nobs if par.settings.nobs is not None else len(documents)
-    stop = min(stop, len(documents))
+    topic_embeddings = np.array(topic_model.topic_embeddings_[1:])  # Exclude topic -1
+    ignore_limit = par.settings.ignore_limit
+    if ignore_limit is not None:
+        print(f"Ignoring sentences with max topic prob < {ignore_limit}...")
 
     if not par.settings.full_p_dist:
         print("Predicting most likely topics...")
         topics = np.array([], dtype=int)
         probs = np.array([], dtype=float)
-        for start_idx in range(0, stop, shard_size):
-            end_idx = min(start_idx + shard_size, stop)
-            print(f"Processing documents {start_idx} to {end_idx}...")
-            batch_docs = documents[start_idx:end_idx]
+        for start_idx, end_idx in batch_ranges(n_sentences, shard_size):
+            print(f"Processing unique sentences {start_idx} to {end_idx}...")
             batch_embeddings = embeddings[start_idx:end_idx]
             if par.settings.clustering:
-                batch_topics, batch_probs = topic_model.transform(batch_docs, embeddings=batch_embeddings)
-            else:
-                sim_matrix = cosine_similarity(
-                    batch_embeddings,
-                    np.array(topic_model.topic_embeddings_[1:]),  # Exclude topic -1
+                batch_topics, batch_probs = topic_model.transform(
+                    documents[start_idx:end_idx], embeddings=batch_embeddings
                 )
-
-                batch_topics = np.argmax(sim_matrix, axis=1)
-                batch_probs = np.take_along_axis(sim_matrix, batch_topics[:, None], axis=1)[:, 0]
-
-                if par.settings.ignore_limit is not None:
-                    print(f"Ignoring sentences with max topic prob < {par.settings.ignore_limit}...")
-                    ignore_index = np.max(sim_matrix, axis=1) < par.settings.ignore_limit
-                    print(f"Number of ignored sentences in this batch: {np.sum(ignore_index)}")
-                    batch_topics[ignore_index] = -1
-                    batch_probs[ignore_index] = 1.0
+            else:
+                sim_matrix = topic_similarities(batch_embeddings, topic_embeddings, ignore_limit)
+                batch_topics, batch_probs = best_topics(sim_matrix, ignore_limit)
 
             topics = np.concatenate([topics, batch_topics])
             probs = np.concatenate([probs, batch_probs])
 
-        texts = (
-            texts.with_row_index("row_nr")
-            .with_columns(
-                pl.Series("predicted_topic", topics),
-                pl.Series("topic_probability", probs),
-                ann_id=extract_ann_id(c.label),
-                training_data=(pl.col("row_nr") < par_train.settings.nobs),
-            )
-            .drop("row_nr")
+        per_sentence = pl.DataFrame({
+            "sentence_id": sentence_ids,
+            "predicted_topic": topics,
+            "topic_probability": probs,
+        })
+        texts = join_on_sentences(texts, per_sentence).with_columns(
+            training_data=c.label.is_in(training_labels),
         )
         topics_wide = aggregate_predictions_to_ann_level(texts)
 
-    elif par.settings.full_p_dist:
+    else:
         print("Predicting full probability distributions...")
         if par.settings.clustering:
             raise ValueError("Full probability distributions are not compatible with clustering.")  # noqa: TRY003
 
-        for start_idx in range(0, stop, shard_size):
-            end_idx = min(start_idx + shard_size, stop)
-            print(f"Processing documents {start_idx} to {end_idx}...")
-            batch_docs = documents[start_idx:end_idx]
-            batch_embeddings = embeddings[start_idx:end_idx]
-            sim_matrix = cosine_similarity(
-                batch_embeddings,
-                np.array(topic_model.topic_embeddings_[1:]),  # Exclude topic -1
-            )
+        probs = np.vstack([
+            topic_similarities(embeddings[start_idx:end_idx], topic_embeddings, ignore_limit)
+            for start_idx, end_idx in batch_ranges(n_sentences, shard_size)
+        ])
 
-            # Replace negatives with zeros
-            sim_matrix[sim_matrix < 0] = 0
-
-            probs_batch = sim_matrix
-
-            if par.settings.ignore_limit is not None:
-                print(f"Ignoring sentences with max topic prob < {par.settings.ignore_limit}...")
-                ignore_index = np.max(sim_matrix, axis=1) < par.settings.ignore_limit
-                print(f"Number of ignored sentences in this batch: {np.sum(ignore_index)}")
-                probs_batch[ignore_index, :] = 0
-
-            if start_idx == 0:  # noqa: SIM108
-                probs = probs_batch
-            else:
-                probs = np.vstack([probs, probs_batch])
-
-        prob_df = (
-            pl.DataFrame(
-                probs,
-                schema=[f"topic_{i}" for i in range(probs.shape[1])],
-            )
-            .with_columns(label=texts["label"])
-            .with_row_index("row_nr")
-            .with_columns(
-                training_data=(pl.col("label").is_not_null() & (pl.col("row_nr") < par_train.settings.nobs)),
-            )
-            .drop("row_nr")
+        per_sentence = pl.DataFrame(
+            probs,
+            schema=[f"topic_{i}" for i in range(probs.shape[1])],
+        ).with_columns(sentence_id=sentence_ids)
+        texts = join_on_sentences(texts, per_sentence).with_columns(
+            training_data=c.label.is_in(training_labels),
         )
-
-        texts = texts.join(prob_df, on="label").with_columns(
-            ann_id=extract_ann_id(c.label),
-        )
-        print("Saving predictions at sentence level...")
-
-        # Save results
-        texts.write_parquet(output_dir / "predicted_topics.parquet")
 
         topics_wide = texts.group_by("ann_id").agg(
             *[
