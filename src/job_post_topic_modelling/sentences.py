@@ -4,6 +4,7 @@ import os
 import re
 
 import nltk  # type: ignore  # noqa: PGH003
+import polars as pl
 from nltk.tokenize import sent_tokenize
 
 # Check if running on STAR server, if yes set up path to load nltk data
@@ -130,3 +131,76 @@ def is_heading(sentence: str) -> bool:
 def is_sensitive(sentence: str) -> bool:
     """True if the sentence contains a date, phone number, e-mail address or homepage."""
     return any(pattern.search(sentence) for pattern in SENSITIVE_PATTERNS)
+
+
+def split_posts(posts: pl.DataFrame, unit: str = "sentence") -> pl.DataFrame:
+    """Split each post into parts, one row per part.
+
+    Input columns: post_id, text. Output columns: post_id, label, text, drop_reason.
+    label is "<post_id>_<i>" with i counted from 00 over the post's parts, in order.
+    drop_reason is null for parts to keep, "heading" for section titles and "sensitive" for dates,
+    phone numbers, e-mail addresses and homepages.
+    """
+    rows = []
+    for post_id, text in posts.select("post_id", "text").iter_rows():
+        clean_text = html_to_text(text or "")
+        for i, part in enumerate(split_into_sentences(clean_text, unit)):
+            rows.append({
+                "post_id": post_id,
+                "label": f"{post_id}_{i:02d}",
+                "text": part,
+                "drop_reason": _drop_reason(part),
+            })
+    schema = {"post_id": posts.schema["post_id"], "label": pl.String, "text": pl.String, "drop_reason": pl.String}
+    return pl.DataFrame(rows, schema=schema)
+
+
+def _drop_reason(sentence: str) -> str | None:
+    """Return "heading", "sensitive" or None (keep). Headings are checked first."""
+    if is_heading(sentence):
+        return "heading"
+    if is_sensitive(sentence):
+        return "sensitive"
+    return None
+
+
+def title_rows(posts: pl.DataFrame) -> pl.DataFrame:
+    """One row per post with a non-empty title. Input columns: post_id, title.
+
+    Output has the same columns as split_posts, with label "<post_id>_title".
+    Titles are never checked with is_heading, a short title is still a title.
+    """
+    titles = posts.select("post_id", pl.col("title").str.strip_chars().alias("text"))
+    titles = titles.filter(pl.col("text").is_not_null() & (pl.col("text") != ""))
+    return titles.select(
+        "post_id",
+        pl.format("{}_title", pl.col("post_id")).alias("label"),
+        "text",
+        pl.lit(None, dtype=pl.String).alias("drop_reason"),
+    )
+
+
+def deduplicate(texts: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Give every distinct text one sentence_id, so each distinct text is embedded only once.
+
+    Returns (texts_with_sentence_id, sentences):
+    - sentences has one row per distinct text: sentence_id (0, 1, 2, ... in order of first appearance),
+      text, and n_occurrences (how many rows of `texts` have this text).
+    - texts_with_sentence_id is `texts` unchanged, same row order, plus a sentence_id column.
+      sentence_id links each row to its row in `sentences`.
+    """
+    # Step 1: the distinct texts, in order of first appearance
+    sentences = texts.select("text").unique(maintain_order=True)
+
+    # Step 2: number them 0, 1, 2, ...
+    sentences = sentences.with_row_index("sentence_id")
+
+    # Step 3: count how often each text occurs in the input
+    counts = texts.group_by("text").agg(pl.len().alias("n_occurrences"))
+    sentences = sentences.join(counts, on="text", how="left", maintain_order="left")
+
+    # Step 4: look up each input row's sentence_id by its text, keeping the input row order
+    texts_with_sentence_id = texts.join(
+        sentences.select("sentence_id", "text"), on="text", how="left", maintain_order="left"
+    )
+    return texts_with_sentence_id, sentences.select("sentence_id", "text", "n_occurrences")

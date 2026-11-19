@@ -1,4 +1,14 @@
-from job_post_topic_modelling.sentences import html_to_text, is_heading, is_sensitive, split_into_sentences
+import polars as pl
+
+from job_post_topic_modelling.sentences import (
+    deduplicate,
+    html_to_text,
+    is_heading,
+    is_sensitive,
+    split_into_sentences,
+    split_posts,
+    title_rows,
+)
 
 
 def test_html_list_tags_become_line_breaks():
@@ -53,3 +63,29 @@ def test_phone_formats_are_sensitive():
     assert is_sensitive("Ring på +45 36 34 49 90")
     assert is_sensitive("Ring på 36344990")
     assert not is_sensitive("Vi har 2024 ansatte og 1200 kunder")
+
+
+def test_split_posts_marks_drop_reasons_and_labels():
+    posts = pl.DataFrame({"post_id": ["p1"], "text": ["Vi tilbyder:\nFlekstid.\nRing på 3634 4990."]})
+    out = split_posts(posts)
+    assert out["label"].to_list() == ["p1_00", "p1_01", "p1_02"]
+    assert out["drop_reason"].to_list() == ["heading", None, "sensitive"]
+
+
+def test_title_rows_skip_empty_titles():
+    posts = pl.DataFrame({"post_id": ["p1", "p2", "p3"], "title": ["Pædagog", None, " "]})
+    out = title_rows(posts)
+    assert out.select("post_id", "label", "text").rows() == [("p1", "p1_title", "Pædagog")]
+
+
+def test_deduplicate_round_trip():
+    texts = pl.DataFrame({
+        "post_id": ["a", "a", "b"],
+        "label": ["a_00", "a_01", "b_00"],
+        "text": ["Vi tilbyder flekstid.", "God løn.", "Vi tilbyder flekstid."],
+    })
+    texts_out, sentences = deduplicate(texts)
+    assert sentences.rows() == [(0, "Vi tilbyder flekstid.", 2), (1, "God løn.", 1)]
+    assert texts_out["sentence_id"].to_list() == [0, 1, 0]
+    rebuilt = texts_out.join(sentences, on="sentence_id", suffix="_unique")
+    assert (rebuilt["text"] == rebuilt["text_unique"]).all()
