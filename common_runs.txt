@@ -91,3 +91,10 @@ pre-commit run -a
 # cleaning up git, if you have made changes in main:
 make new branch with your changes:
 git checkout -b new-branch-name
+
+# Embedding comparison on Jobnet.xlsx (run only after the full Claude coding; tune min_cluster_size_share once on mpnet first)
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=sentence_transformers_big,model2vecdk,e5_small,e5_base,e5_large,e5_large_instruct" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=embeddinggemma2" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp run --queue -S "prepare/star=local" -S "embed/model=f2llm_330m" -S "embed.model.truncate_dim=null,256" --force-downstream
+dvc exp show --only-changed --md
+# On STAR (GPU): add -S "embed/settings=star_gpu" -S "train.settings.umap_seed=false". F2LLM-160M only if F2LLM-330M does well.
