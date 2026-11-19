@@ -39,9 +39,11 @@ stages:
       python src/job_post_topic_modelling/train.py
     deps:
     - data/texts.parquet
+    - data/sentences.parquet
     - data/embeddings/
     - src/job_post_topic_modelling/train.py
     - src/job_post_topic_modelling/embed.py
+    - src/job_post_topic_modelling/embedding_models.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
@@ -54,9 +56,12 @@ stages:
     - models/bertopic_model/topics.json
     - models/submodels/dimensionality_reduction_model.pkl
     - models/submodels/clustering_model.pkl
+    - models/submodels/training_labels.parquet
     - output/predicted_topics_train.parquet
     - output/predicted_topics_agg_train.parquet
-    - output/metrics/train.json
+    metrics:
+    - output/metrics/train.json:
+        cache: false
   predict:
     cmd: >
       POLARS_MAX_THREADS=8

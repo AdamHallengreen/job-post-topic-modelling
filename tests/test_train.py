@@ -1,6 +1,7 @@
 import numpy as np
 import polars as pl
 
+from job_post_topic_modelling.train import expand_to_occurrences, resolve_cluster_sizes, sample_training_rows
 from job_post_topic_modelling.utils.data_io import join_on_sentences, load_pretrained_embeddings
 
 
@@ -18,3 +19,23 @@ def test_join_on_sentences_gives_every_copy_the_same_topic():
     assert out["label"].to_list() == ["a_00", "b_00", "a_01"]
     assert out["predicted_topic"].to_list() == [3, 3, 7]
     assert out["ann_id"].to_list() == ["a", "b", "a"]
+
+
+def test_resolve_cluster_sizes_scales_with_data():
+    assert resolve_cluster_sizes(8_000_000, 0.0005, 0.1) == (4000, 400)
+    assert resolve_cluster_sizes(280_000, 0.0005, 0.1) == (140, 14)
+    assert resolve_cluster_sizes(1_000, 0.0005, 0.1) == (10, 1)  # floor
+
+
+def test_sample_training_rows():
+    rows = sample_training_rows(100, nobs=10, seed=42)
+    assert len(rows) == 10 and len(set(rows)) == 10 and list(rows) == sorted(rows)
+    np.testing.assert_array_equal(rows, sample_training_rows(100, nobs=10, seed=42))
+    np.testing.assert_array_equal(sample_training_rows(5, nobs=None, seed=42), np.arange(5))
+    np.testing.assert_array_equal(sample_training_rows(5, nobs=50, seed=42), np.arange(5))
+
+
+def test_expand_to_occurrences_repeats_each_copy():
+    unique_embeddings = np.array([[1.0, 0.0], [0.0, 1.0]])
+    out = expand_to_occurrences(unique_embeddings, unique_ids=np.array([3, 7]), occurrence_ids=np.array([7, 3, 7, 7]))
+    np.testing.assert_array_equal(out, [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]])

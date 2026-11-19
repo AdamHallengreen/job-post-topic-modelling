@@ -2,7 +2,6 @@ import json
 import pickle
 import time
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import polars as pl
@@ -28,14 +27,6 @@ from job_post_topic_modelling.utils.data_io import (  # noqa: E402
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
 
 
-class UnsupportedAnchorTypeError(Exception):
-    """Exception raised when an unsupported anchor type is encountered."""
-
-    def __init__(self, anchor: Any):
-        message = f"Unsupported anchor type: {type(anchor).__name__}.Anchor must be a string or a list of strings."
-        super().__init__(message)
-
-
 class UnknownModelError(Exception):
     """Exception raised when an unknown model is encountered."""
 
@@ -51,24 +42,43 @@ class InvalidSeedTopicListError(Exception):
         super().__init__(message)
 
 
-def rescale(x, inplace=False):
-    """Rescale an embedding so optimization will not have convergence issues."""
-    if not inplace:
-        x = np.array(x, copy=True)
+def resolve_cluster_sizes(
+    n_train: int, min_cluster_size_share: float, min_samples_ratio: float, floor: int = 10
+) -> tuple[int, int]:
+    """Turn relative HDBSCAN settings into absolute (min_cluster_size, min_samples) for n_train occurrences."""
+    min_cluster_size = max(floor, round(min_cluster_size_share * n_train))
+    min_samples = max(1, round(min_samples_ratio * min_cluster_size))
+    return min_cluster_size, min_samples
 
-    x /= np.std(x[:, 0]) * 10000
 
-    return x
+def sample_training_rows(n_rows: int, nobs: int | None, seed: int) -> np.ndarray:
+    """Pick a random sample of occurrence rows (sorted, no repeats). All rows if nobs is None or >= n_rows."""
+    if nobs is None or nobs >= n_rows:
+        return np.arange(n_rows)
+    return np.sort(np.random.default_rng(seed).choice(n_rows, nobs, replace=False))
 
 
-def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
+def expand_to_occurrences(
+    unique_embeddings: np.ndarray, unique_ids: np.ndarray, occurrence_ids: np.ndarray
+) -> np.ndarray:
+    """Return one embedding row per entry in occurrence_ids.
+
+    unique_embeddings[i] is the embedding of sentence unique_ids[i]; unique_ids must be sorted.
+    A sentence that occurs N times in occurrence_ids is copied N times, so UMAP and HDBSCAN see it N times.
+    """
+    # unique_ids is sorted, so searchsorted gives, for each occurrence, the position of its sentence in unique_ids
+    # (which is also its row in unique_embeddings).
+    positions = np.searchsorted(unique_ids, occurrence_ids)
+    return unique_embeddings[positions]
+
+
+def get_dimensionality_reduction_model(par: OmegaConf, seed: int, n_jobs: int):
     args = {k: v for k, v in par.dimensionality_reduction.items() if (k not in ["model"])}
 
     if par.dimensionality_reduction.model == "UMAP":
-        # Initialize and rescale PCA embeddings
-        # pca_embeddings = rescale(PCA(n_components=par.dimensionality_reduction.n_components).fit_transform(embeddings))
-        # Start UMAP from PCA embeddings
-        dimensionality_reduction_model = UMAP(init="pca", **args)
+        # A fixed random_state makes UMAP single-threaded; umap_seed=false trades reproducibility for speed.
+        random_state = seed if par.settings.umap_seed else None
+        dimensionality_reduction_model = UMAP(init="pca", random_state=random_state, n_jobs=n_jobs, **args)
     elif par.dimensionality_reduction.model == "PCA":
         dimensionality_reduction_model = PCA(**args)
     elif par.dimensionality_reduction.model == "empty":
@@ -78,36 +88,30 @@ def get_dimensionality_reduction_model(par: OmegaConf, embeddings=None):
     return dimensionality_reduction_model
 
 
-def get_clustering_model(par: OmegaConf):
+def get_clustering_model(par: OmegaConf, n_train: int, seed: int, n_jobs: int):
     args = {k: v for k, v in par.clustering.items() if k not in ["model"]}
     if par.clustering.model == "HDBSCAN":
-        clustering_model = HDBSCAN(**args)
+        min_cluster_size, min_samples = resolve_cluster_sizes(
+            n_train, args.pop("min_cluster_size_share"), args.pop("min_samples_ratio")
+        )
+        clustering_model = HDBSCAN(
+            min_cluster_size=min_cluster_size, min_samples=min_samples, core_dist_n_jobs=n_jobs, **args
+        )
     elif par.clustering.model == "KMeans":
-        clustering_model = KMeans(**args)
+        clustering_model = KMeans(random_state=seed, **args)
     else:
         raise UnknownModelError(par.clustering.model)
     return clustering_model
 
 
-def get_embedding_model_cpu(embed_par):
-    """Load the embedding model from the embed params (model and settings) on the CPU."""
-    return load_embedding_model(embed_par.model, embed_par.settings, device="cpu")
-
-
-def load_model_objects(par, embed_par, embeddings, stop_words):
-    embedding_model = get_embedding_model_cpu(embed_par)
-    dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
-    clustering_model = get_clustering_model(par)
-
-    # Handle seed topic input
-    if par.seed_topics.seeds is not None:
-        seed_topic_list = OmegaConf.to_container(par.seed_topics.seeds, resolve=True)
-        if not isinstance(seed_topic_list, list) or not all(isinstance(x, list) for x in seed_topic_list):
-            raise InvalidSeedTopicListError(seed_topic_list)
-    else:
-        seed_topic_list = None
-
-    return embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list
+def load_seed_topic_list(par: OmegaConf):
+    """Read the optional seed topics (a list of lists of words) for BERTopic."""
+    if par.seed_topics.seeds is None:
+        return None
+    seed_topic_list = OmegaConf.to_container(par.seed_topics.seeds, resolve=True)
+    if not isinstance(seed_topic_list, list) or not all(isinstance(x, list) for x in seed_topic_list):
+        raise InvalidSeedTopicListError(seed_topic_list)
+    return seed_topic_list
 
 
 def aggregate_predictions_to_ann_level(df):
@@ -154,23 +158,36 @@ if __name__ == "__main__":
     start = time.time()
     print_params(full_par)
 
-    # Load
+    # 1. Load every sentence occurrence (one row per sentence in each post)
     print("Loading data...")
-    embeddings = load_pretrained_embeddings(data_dir / "embeddings", nobs=par.settings.nobs)
-
     texts = pl.read_parquet(data_dir / "texts.parquet")
-    if par.settings.nobs is not None:
-        texts = texts.head(par.settings.nobs)
-    documents = texts.select("text").to_series().to_list()
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
-    # Choose models
-    embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
-        par, full_par.embed, embeddings, stop_words
-    )
-    vectorizer_model = CountVectorizer(stop_words=stop_words)
+    # 2. Sample training occurrences. A sentence that occurs N times can be drawn up to N times.
+    train_texts = texts[sample_training_rows(texts.height, par.settings.nobs, par.settings.seed)]
 
-    # Run BERTopic
+    # 3. Load the embeddings of only the unique sentences in the sample (each sentence is embedded once)
+    occurrence_ids = train_texts["sentence_id"].to_numpy()
+    unique_ids = np.unique(occurrence_ids)
+    unique_embeddings = load_pretrained_embeddings(data_dir / "embeddings", rows=unique_ids)
+
+    # 4. Expand back to one embedding per occurrence, so UMAP and HDBSCAN see repeated sentences repeatedly
+    embeddings = expand_to_occurrences(unique_embeddings, unique_ids, occurrence_ids)
+    documents = train_texts["text"].to_list()
+    print(f"{len(documents)} occurrences, {len(unique_ids)} unique sentences")
+
+    # Choose models
+    embedding_model = load_embedding_model(full_par.embed.model, full_par.embed.settings, device="cpu")
+    dimensionality_reduction_model = get_dimensionality_reduction_model(par, par.settings.seed, par.settings.n_jobs)
+    clustering_model = get_clustering_model(par, len(documents), par.settings.seed, par.settings.n_jobs)
+    seed_topic_list = load_seed_topic_list(par)
+    vectorizer_model = CountVectorizer(stop_words=stop_words)
+    # The fitted HDBSCAN knows the resolved sizes (KMeans has none)
+    min_cluster_size = getattr(clustering_model, "min_cluster_size", None)
+    min_samples = getattr(clustering_model, "min_samples", None)
+    print(f"min_cluster_size={min_cluster_size}, min_samples={min_samples}")
+
+    # 5. Run BERTopic. Topics and probabilities come out per occurrence.
     print("Training BERTopic model...")
     topic_model = BERTopic(
         # Modules
@@ -189,6 +206,18 @@ if __name__ == "__main__":
     )
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
 
+    # 6. Optionally move outlier occurrences (topic -1) into the nearest topic, then refresh topic words
+    if par.settings.reduce_outliers is not None:
+        topics = topic_model.reduce_outliers(
+            documents,
+            topics,
+            strategy=par.settings.reduce_outliers,
+            embeddings=embeddings,
+            threshold=par.settings.reduce_outliers_threshold,
+        )
+        topic_model.update_topics(documents, topics=topics, vectorizer_model=vectorizer_model)
+
+    # 7. Save the model, the submodels and the labels of the training occurrences
     print(f"Saving BERTopic model to {models_dir / 'bertopic_model'}")
     topic_model.save(
         models_dir / "bertopic_model",
@@ -197,26 +226,24 @@ if __name__ == "__main__":
         save_embedding_model=False,
     )
     print("Saving sub models ... ")
-    pickle.dump(topic_model.umap_model, open(models_dir / r"submodels/dimensionality_reduction_model.pkl", "wb"))  # noqa: SIM115
-    pickle.dump(topic_model.hdbscan_model, open(models_dir / r"submodels/clustering_model.pkl", "wb"))  # noqa: SIM115
+    with (models_dir / "submodels/dimensionality_reduction_model.pkl").open("wb") as f:
+        pickle.dump(topic_model.umap_model, f)
+    with (models_dir / "submodels/clustering_model.pkl").open("wb") as f:
+        pickle.dump(topic_model.hdbscan_model, f)
+    train_texts.select("label").write_parquet(models_dir / "submodels/training_labels.parquet")
 
+    # 8. Predictions per training occurrence (no join needed: topics are already per occurrence)
     print("Saving predictions on training data...")
-    texts = (
-        texts.with_row_index("row_nr")
-        .with_columns(
-            pl.Series("predicted_topic", topics),
-            pl.Series("topic_probability", probs),
-            ann_id=c.label.str.extract(r"^(\d+)_s", 1),
-            training_data=pl.lit(True),
-        )
-        .drop("row_nr")
+    predictions = train_texts.with_columns(
+        predicted_topic=pl.Series(topics),
+        topic_probability=pl.Series(probs),  # 1-D (one float per occurrence) unless calculate_probabilities is true
+        ann_id=c.post_id,
+        training_data=pl.lit(True),
     )
-    print("Saving predictions at sentence level...")
 
-    # Save results
-    texts.write_parquet(output_dir / "predicted_topics_train.parquet")
-
-    topics_wide = aggregate_predictions_to_ann_level(texts)
+    # 9. Save results
+    predictions.write_parquet(output_dir / "predicted_topics_train.parquet")
+    topics_wide = aggregate_predictions_to_ann_level(predictions)
     print("Saving aggregated results...")
     topics_wide.write_parquet(output_dir / "predicted_topics_agg_train.parquet")
 
@@ -225,6 +252,16 @@ if __name__ == "__main__":
     hours = (stop - start) / 3600
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
-    # Log metrics
+    # 10. Log metrics
     with ((output_dir / "metrics") / "train.json").open("w") as f:
-        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
+        json.dump(
+            {
+                f"{Path(__file__).name}": f"{hours:.2f} hours",
+                "n_train_occurrences": len(documents),
+                "n_train_unique_sentences": len(unique_ids),
+                "min_cluster_size": min_cluster_size,
+                "min_samples": min_samples,
+            },
+            f,
+            indent=4,
+        )

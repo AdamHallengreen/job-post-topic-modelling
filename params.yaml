@@ -29,7 +29,13 @@ train:
     calculate_probabilities: false
     nr_topics: null
     verbose: true
+    # nobs counts sentence occurrences (rows of texts.parquet); a sentence repeated N times weighs N times in UMAP/HDBSCAN
     nobs: 8000000
+    seed: 42
+    umap_seed: true
+    n_jobs: 8
+    reduce_outliers: null # null = off, or a BERTopic strategy such as `embeddings`
+    reduce_outliers_threshold: 0.0
   seed_topics:
     seeds: null
   dimensionality_reduction:
@@ -38,17 +44,14 @@ train:
     n_components: 5
     min_dist: 0.0
     metric: cosine
-    random_state: null
     low_memory: true
-    n_jobs: 16
   clustering:
     model: HDBSCAN
-    min_cluster_size: 3000
-    min_samples: 200
+    min_cluster_size_share: 0.0005
+    min_samples_ratio: 0.1
     metric: euclidean
     cluster_selection_method: leaf
     prediction_data: true
-    core_dist_n_jobs: 8
 predict:
   settings:
     nobs: null

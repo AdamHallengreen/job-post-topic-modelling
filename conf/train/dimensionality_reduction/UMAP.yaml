@@ -3,6 +3,6 @@ n_neighbors : 60
 n_components: 5
 min_dist: 0.0
 metric: cosine
-random_state:
 low_memory: True
-n_jobs: 16
+# random_state comes from train.settings.seed; a fixed seed makes UMAP single-threaded.
+# On STAR pass `-S train.settings.umap_seed=false` for speed.

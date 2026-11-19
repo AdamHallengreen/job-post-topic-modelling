@@ -15,7 +15,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from job_post_topic_modelling.utils.miscellaneous import try_inter
 
 try_inter()
-from job_post_topic_modelling.train import aggregate_predictions_to_ann_level, get_embedding_model_cpu  # noqa: E402
+from job_post_topic_modelling.embedding_models import load_embedding_model  # noqa: E402
+from job_post_topic_modelling.train import aggregate_predictions_to_ann_level  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
     load_pretrained_embeddings,
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
 
-    embedding_model = get_embedding_model_cpu(full_par.embed)
+    embedding_model = load_embedding_model(full_par.embed.model, full_par.embed.settings, device="cpu")
 
     topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
     # topic_model.seed_topics = seed_topic_list # check if needed

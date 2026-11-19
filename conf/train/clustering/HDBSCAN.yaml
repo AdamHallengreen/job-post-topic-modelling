@@ -1,7 +1,6 @@
 model: HDBSCAN
-min_cluster_size: 3000
-min_samples: 200
+min_cluster_size_share: 0.0005
+min_samples_ratio: 0.1
 metric: euclidean
 cluster_selection_method: leaf
 prediction_data: True
-core_dist_n_jobs: 8

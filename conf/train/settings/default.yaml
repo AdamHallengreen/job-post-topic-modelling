@@ -2,4 +2,10 @@ top_n_words: 20
 calculate_probabilities: False # Only works with HDBSCAN
 nr_topics:
 verbose: True
+# nobs counts sentence occurrences (rows of texts.parquet); a sentence repeated N times weighs N times in UMAP/HDBSCAN
 nobs: 8_000_000 # Set to null to use all observations
+seed: 42
+umap_seed: true
+n_jobs: 8
+reduce_outliers: null # null = off, or a BERTopic strategy such as `embeddings`
+reduce_outliers_threshold: 0.0
