@@ -3,6 +3,7 @@ import polars as pl
 from omegaconf import OmegaConf
 
 from job_post_topic_modelling.train import (
+    aggregate_predictions_to_ann_level,
     expand_to_occurrences,
     get_clustering_model,
     resolve_cluster_sizes,
@@ -16,6 +17,19 @@ def test_load_selected_rows_across_shards(tmp_path):
     np.save(tmp_path / "embeddings_shard_2.npy", np.arange(6, 10).reshape(2, 2))
     out = load_pretrained_embeddings(tmp_path, rows=np.array([1, 3]))
     np.testing.assert_array_equal(out, [[2, 3], [6, 7]])
+
+
+def test_post_with_mixed_training_flags_gets_one_row():
+    df = pl.DataFrame({
+        "ann_id": ["a", "a"],
+        "predicted_topic": [0, 1],
+        "topic_probability": [0.9, 0.8],
+        "training_data": [True, False],
+    })
+    out = aggregate_predictions_to_ann_level(df)
+    assert out["ann_id"].to_list() == ["a"]
+    assert out["training_data"].to_list() == [True]
+    assert {"p_topic_0", "p_topic_1", "d_topic_0", "d_topic_1"} <= set(out.columns)
 
 
 def test_join_on_sentences_gives_every_copy_the_same_topic():

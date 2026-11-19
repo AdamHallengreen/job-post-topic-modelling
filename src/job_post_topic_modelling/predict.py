@@ -1,18 +1,29 @@
 import json
+import os
 import pickle
 import time
 from pathlib import Path
 
-import numpy as np
-import polars as pl
-from bertopic import BERTopic
-from bertopic.cluster import BaseCluster
-from bertopic.dimensionality import BaseDimensionalityReduction
-from omegaconf import OmegaConf
-from polars import col as c
-from sklearn.metrics.pairwise import cosine_similarity
+# thread limits; set here instead of in dvc.yaml so the stage also runs under cmd.exe on Windows
+for _name in (
+    "POLARS_MAX_THREADS",
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+):
+    os.environ.setdefault(_name, "8")
 
-from job_post_topic_modelling.utils.miscellaneous import try_inter
+import numpy as np  # noqa: E402
+import polars as pl  # noqa: E402
+from bertopic import BERTopic  # noqa: E402
+from bertopic.cluster import BaseCluster  # noqa: E402
+from bertopic.dimensionality import BaseDimensionalityReduction  # noqa: E402
+from omegaconf import OmegaConf  # noqa: E402
+from polars import col as c  # noqa: E402
+from sklearn.metrics.pairwise import cosine_similarity  # noqa: E402
+
+from job_post_topic_modelling.utils.miscellaneous import try_inter  # noqa: E402
 
 try_inter()
 from job_post_topic_modelling.embedding_models import load_embedding_model  # noqa: E402
@@ -189,7 +200,7 @@ if __name__ == "__main__":
             "topic_probability": probs,
         })
         texts = join_on_sentences(texts, per_sentence).with_columns(
-            training_data=c.label.is_in(training_labels),
+            training_data=c.label.is_in(training_labels.implode()),
         )
         topics_wide = aggregate_predictions_to_ann_level(texts)
 
@@ -208,7 +219,7 @@ if __name__ == "__main__":
             schema=[f"topic_{i}" for i in range(probs.shape[1])],
         ).with_columns(sentence_id=sentence_ids)
         texts = join_on_sentences(texts, per_sentence).with_columns(
-            training_data=c.label.is_in(training_labels),
+            training_data=c.label.is_in(training_labels.implode()),
         )
 
         topics_wide = texts.group_by("ann_id").agg(

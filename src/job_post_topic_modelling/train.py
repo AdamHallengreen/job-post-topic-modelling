@@ -1,23 +1,34 @@
 import json
+import os
 import pickle
 import time
 from pathlib import Path
 
-import numpy as np
-import polars as pl
-import polars.selectors as cs
-from bertopic import BERTopic
-from bertopic.dimensionality import BaseDimensionalityReduction
-from hdbscan import HDBSCAN
-from omegaconf import OmegaConf
-from polars import col as c
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.feature_extraction.text import CountVectorizer
-from umap import UMAP
+# thread limits; set here instead of in dvc.yaml so the stage also runs under cmd.exe on Windows
+for _name in (
+    "POLARS_MAX_THREADS",
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+):
+    os.environ.setdefault(_name, "8")
 
-from job_post_topic_modelling.embedding_models import load_embedding_model
-from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
+import numpy as np  # noqa: E402
+import polars as pl  # noqa: E402
+import polars.selectors as cs  # noqa: E402
+from bertopic import BERTopic  # noqa: E402
+from bertopic.dimensionality import BaseDimensionalityReduction  # noqa: E402
+from hdbscan import HDBSCAN  # noqa: E402
+from omegaconf import OmegaConf  # noqa: E402
+from polars import col as c  # noqa: E402
+from sklearn.cluster import KMeans  # noqa: E402
+from sklearn.decomposition import PCA  # noqa: E402
+from sklearn.feature_extraction.text import CountVectorizer  # noqa: E402
+from umap import UMAP  # noqa: E402
+
+from job_post_topic_modelling.embedding_models import load_embedding_model  # noqa: E402
+from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter  # noqa: E402
 
 try_inter()
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
@@ -117,6 +128,7 @@ def load_seed_topic_list(par: OmegaConf):
 
 
 def aggregate_predictions_to_ann_level(df):
+    """One row per post (ann_id): p_topic_*/d_topic_* columns per topic plus training_data (max over the post's rows)."""
     print("Aggregate to ann_id/job add level")
     topics_agg = df.group_by(
         "ann_id",
@@ -124,15 +136,12 @@ def aggregate_predictions_to_ann_level(df):
     ).agg(
         (pl.lit(1) - (pl.lit(1) - c("topic_probability")).product()).alias("p_topic"),
         (pl.col("topic_probability").max() > 0).alias("d_topic"),
-        pl.col(
-            "training_data"
-        ).max(),  # during loading of embeddings, half of one add might have been used for training
     )
     print("Make into wide format")
     topics_wide = (
         topics_agg.sort("predicted_topic").pivot(
             values=["p_topic", "d_topic"],
-            index=["ann_id", "training_data"],
+            index="ann_id",
             on="predicted_topic",
             aggregate_function=None,
         )
@@ -140,7 +149,11 @@ def aggregate_predictions_to_ann_level(df):
         cs.starts_with("p_topic").fill_null(0.0),
         cs.starts_with("d_topic").fill_null(False),
     )
-    return topics_wide
+    # A post can have rows both inside and outside the training sample: it counts as training data if any row is
+    post_training_data = df.group_by("ann_id").agg(pl.col("training_data").max())
+    return topics_wide.join(post_training_data, on="ann_id", how="left").select(
+        "ann_id", "training_data", cs.exclude("ann_id", "training_data")
+    )
 
 
 if __name__ == "__main__":
@@ -175,6 +188,7 @@ if __name__ == "__main__":
 
     # 4. Expand back to one embedding per occurrence, so UMAP and HDBSCAN see repeated sentences repeatedly
     embeddings = expand_to_occurrences(unique_embeddings, unique_ids, occurrence_ids)
+    del unique_embeddings  # free memory, the expanded copy is all we need
     documents = train_texts["text"].to_list()
     print(f"{len(documents)} occurrences, {len(unique_ids)} unique sentences")
 
@@ -184,7 +198,7 @@ if __name__ == "__main__":
     clustering_model = get_clustering_model(par, len(documents), par.settings.seed, par.settings.n_jobs)
     seed_topic_list = load_seed_topic_list(par)
     vectorizer_model = CountVectorizer(stop_words=stop_words)
-    # The fitted HDBSCAN knows the resolved sizes (KMeans has none)
+    # The HDBSCAN settings include the resolved cluster sizes (KMeans has none)
     min_cluster_size = getattr(clustering_model, "min_cluster_size", None)
     min_samples = getattr(clustering_model, "min_samples", None)
     print(f"min_cluster_size={min_cluster_size}, min_samples={min_samples}")
@@ -209,7 +223,9 @@ if __name__ == "__main__":
     topics, probs = topic_model.fit_transform(documents, embeddings=embeddings)
 
     # 6. Optionally move outlier occurrences (topic -1) into the nearest topic, then refresh topic words
-    if par.settings.reduce_outliers is not None:
+    if par.settings.reduce_outliers is not None and -1 not in topics:
+        print("No outliers to reduce (e.g. KMeans assigns every occurrence to a topic)")
+    elif par.settings.reduce_outliers is not None:
         topics = topic_model.reduce_outliers(
             documents,
             topics,
