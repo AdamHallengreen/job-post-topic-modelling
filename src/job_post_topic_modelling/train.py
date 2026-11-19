@@ -12,13 +12,12 @@ from bertopic.dimensionality import BaseDimensionalityReduction
 from hdbscan import HDBSCAN
 from omegaconf import OmegaConf
 from polars import col as c
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 
-from job_post_topic_modelling.embed import get_embedding_model_name
+from job_post_topic_modelling.embedding_models import load_embedding_model
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
@@ -90,16 +89,13 @@ def get_clustering_model(par: OmegaConf):
     return clustering_model
 
 
-def get_embedding_model_cpu(embedding_model_name: str):
-    """
-    Get the embedding model name, checking if running on STATA server.
-    This is because the star server needs a local path
-    """
-    return SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
+def get_embedding_model_cpu(embed_par):
+    """Load the embedding model from the embed params (model and settings) on the CPU."""
+    return load_embedding_model(embed_par.model, embed_par.settings, device="cpu")
 
 
-def load_model_objects(par, embedding_model_name, embeddings, stop_words):
-    embedding_model = get_embedding_model_cpu(embedding_model_name)
+def load_model_objects(par, embed_par, embeddings, stop_words):
+    embedding_model = get_embedding_model_cpu(embed_par)
     dimensionality_reduction_model = get_dimensionality_reduction_model(par, embeddings=embeddings)
     clustering_model = get_clustering_model(par)
 
@@ -152,7 +148,6 @@ if __name__ == "__main__":
     # Load parameters
     full_par = OmegaConf.load(params_path)
     par = full_par.train
-    embedding_model_name = full_par.embed.model.embedding_model
 
     # Process
     print(f"Starting {Path(__file__).name}")
@@ -171,7 +166,7 @@ if __name__ == "__main__":
 
     # Choose models
     embedding_model, dimensionality_reduction_model, clustering_model, seed_topic_list = load_model_objects(
-        par, embedding_model_name, embeddings, stop_words
+        par, full_par.embed, embeddings, stop_words
     )
     vectorizer_model = CountVectorizer(stop_words=stop_words)
 

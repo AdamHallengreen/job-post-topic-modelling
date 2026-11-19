@@ -105,9 +105,8 @@ if __name__ == "__main__":
 
     print("Loading model")
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
-    embedding_model_name = full_par.embed.model.embedding_model
 
-    embedding_model = get_embedding_model_cpu(embedding_model_name)
+    embedding_model = get_embedding_model_cpu(full_par.embed)
 
     topic_model = BERTopic.load(models_dir / "bertopic_model", embedding_model=embedding_model)
     # topic_model.seed_topics = seed_topic_list # check if needed

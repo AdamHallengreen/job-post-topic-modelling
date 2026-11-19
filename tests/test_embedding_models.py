@@ -3,6 +3,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf
 
+from job_post_topic_modelling.embed import embedding_cost
 from job_post_topic_modelling.embedding_models import (
     encode,
     resolve_dtype,
@@ -67,3 +68,13 @@ def test_model_path():
     assert resolve_model_path("google/embeddinggemma-2", None) == "google/embeddinggemma-2"
     path = resolve_model_path("google/embeddinggemma-2", "/models")
     assert path.replace("\\", "/") == "/models/google/embeddinggemma-2"
+
+
+def test_embedding_cost():
+    cost = embedding_cost(n_sentences=1000, seconds=2.0, vector_dim=256)
+    assert cost == {
+        "sentences_per_second": 500.0,
+        "vector_dim": 256,
+        "bytes_per_vector": 1024,
+        "projected_storage_gb": 57.344,
+    }

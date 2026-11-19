@@ -1,50 +1,32 @@
 import json
-import os
 import shutil
 import time
 from pathlib import Path
 
 import numpy as np
 from omegaconf import OmegaConf
-from sentence_transformers import SentenceTransformer
-from sentence_transformers.models import StaticEmbedding
 
+from job_post_topic_modelling.embedding_models import encode, load_embedding_model
 from job_post_topic_modelling.utils.data_io import load_data
 from job_post_topic_modelling.utils.miscellaneous import print_params
 
 
-def get_embedding_model_name(embedding_model_name: str):
-    """
-    Get the embedding model name, checking if running on STATA server.
-    This is because the star server needs a local path
-    """
-
-    # When running on STAR server, set up path to load the correct SentenceTransformer
-
-    user = os.popen("whoami").read().strip()  # noqa: S605, S607
-    # Optional: force strict offline behavior
-    os.environ["HF_HUB_OFFLINE"] = "1"
-    os.environ["TRANSFORMERS_OFFLINE"] = "1"
-    if embedding_model_name in [
-        "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-    ]:
-        pref = rf"/home/{user}@PROD.SITAD.DK/code/help/installations/"
-    else:
-        raise ValueError(f"Model {embedding_model_name} not recognized in STATA server setup.")  # noqa: TRY003
-    return pref + embedding_model_name
+def embedding_cost(
+    n_sentences: int, seconds: float, vector_dim: int, n_projected: int = 56_000_000
+) -> dict[str, float]:
+    """Speed and storage cost of an embedding model, assuming float32 vectors (4 bytes per number)."""
+    bytes_per_vector = vector_dim * 4
+    return {
+        "sentences_per_second": n_sentences / seconds,
+        "vector_dim": vector_dim,
+        "bytes_per_vector": bytes_per_vector,
+        "projected_storage_gb": round(n_projected * bytes_per_vector / 1e9, 3),
+    }
 
 
-def get_embedding_model(embedding_model_name: str):
-    """
-    Get the embedding model name, checking if running on STATA server.
-    This is because the star server needs a local path
-    """
-
-    return SentenceTransformer(get_embedding_model_name(embedding_model_name))
-
-
-def embed_in_shards(documents, sentence_model, embeddings_path, shard_size=1_000_000, **encode_kwargs):
+def embed_in_shards(
+    documents, sentence_model, model_par, embeddings_path, batch_size, shard_size=1_000_000, **encode_kwargs
+):
     """
     Embed documents in shards to avoid memory issues.
     """
@@ -59,8 +41,11 @@ def embed_in_shards(documents, sentence_model, embeddings_path, shard_size=1_000
         print(f"Processing shard {i}")
         end_idx = min(start_idx + shard_size, num_docs)
         print(f"Embedding documents {start_idx} to {end_idx} out of {num_docs}...")
-        shard_embeddings = sentence_model.encode(
+        shard_embeddings = encode(
+            sentence_model,
             documents[start_idx:end_idx],
+            model_par,
+            batch_size=batch_size,
             **encode_kwargs,
         )
         np.save(embeddings_path / f"embeddings_shard_{i}.npy", shard_embeddings)
@@ -87,33 +72,25 @@ if __name__ == "__main__":
 
     # Load
     print("Loading data...")
-    documents = load_data(
-        str(data_dir / "texts.parquet"), text_col=par.text_col if hasattr(par, "text_col") else "text"
-    )
+    sentences = load_data(data_dir / "sentences.parquet", text_col="text")
 
-    # Compute embeddings
-    print("Embedding and saving documents...")
+    # Compute embeddings (row i belongs to sentence_id i)
+    print("Embedding and saving unique sentences...")
+    sentence_model = load_embedding_model(par.model, par.settings)
 
-    if par.model.use_model2vec:
-        # Not tested for star server yet
-        embedding_model_name = get_embedding_model_name(par.model.embedding_model)
-        static_embedding = StaticEmbedding.from_distillation(
-            embedding_model_name, device=par.settings.device, pca_dims=par.model.pca_dims
-        )
-        sentence_model = SentenceTransformer(modules=[static_embedding])
-    else:
-        sentence_model = get_embedding_model(par.model.embedding_model)
-
+    embed_start = time.time()
     embed_in_shards(
-        documents,
+        sentences,
         sentence_model,
+        par.model,
         embeddings_path,
+        batch_size=par.settings.batch_size,
         shard_size=par.settings.shard_size,
         show_progress_bar=par.settings.show_progress_bar,
-        batch_size=par.settings.batch_size,
         device=par.settings.device,
         num_workers=par.settings.num_workers,
     )
+    embed_seconds = time.time() - embed_start
 
     # Wrap up
     stop = time.time()
@@ -121,4 +98,8 @@ if __name__ == "__main__":
     print(f"Finished {Path(__file__).name} in {hours:.2f} hours")
 
     with ((output_dir / "metrics") / "embed.json").open("w") as f:
-        json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
+        metrics = {f"{Path(__file__).name}": f"{hours:.2f} hours"}
+        metrics.update(
+            embedding_cost(len(sentences), embed_seconds, vector_dim=sentence_model.get_sentence_embedding_dimension())
+        )
+        json.dump(metrics, f, indent=4)

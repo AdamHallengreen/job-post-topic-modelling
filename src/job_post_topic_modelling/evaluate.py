@@ -17,7 +17,6 @@ from llama_cpp import Llama
 from matplotlib.figure import Figure
 from omegaconf import OmegaConf
 from scipy.sparse import csr_matrix
-from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 
 # from celer import LassoCV
@@ -29,7 +28,7 @@ from sklearn.preprocessing import StandardScaler
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
-from job_post_topic_modelling.embed import get_embedding_model, get_embedding_model_name  # noqa: E402
+from job_post_topic_modelling.embedding_models import load_embedding_model, resolve_model_path  # noqa: E402
 from job_post_topic_modelling.utils.data_io import (  # noqa: E402
     load_danish_stop_words,
     load_pretrained_embeddings,
@@ -436,9 +435,9 @@ if __name__ == "__main__":
     stop_words = load_danish_stop_words(data_dir / "stopwords-da.json")
     embedding_model_name = full_par.embed.model.embedding_model
     if par.settings.use_cpu:
-        embedding_model = SentenceTransformer(get_embedding_model_name(embedding_model_name), device="cpu")
+        embedding_model = load_embedding_model(full_par.embed.model, full_par.embed.settings, device="cpu")
     else:
-        embedding_model = get_embedding_model(embedding_model_name)
+        embedding_model = load_embedding_model(full_par.embed.model, full_par.embed.settings)
 
     ctfidf_model = get_cTFIDF_model(par)
     representation_model = get_representation_model(par)
@@ -565,7 +564,7 @@ if __name__ == "__main__":
         output_dir / "bertopic_model_representation",
         serialization="safetensors",
         save_ctfidf=False,  # True, # There is some error here for TRUE
-        save_embedding_model=get_embedding_model_name(embedding_model_name),
+        save_embedding_model=resolve_model_path(embedding_model_name, full_par.embed.settings.get("model_dir")),
     )
 
     print("Logging metrics from previous stages...")

@@ -16,8 +16,9 @@ stages:
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
     deps:
-    - data/texts.parquet
+    - data/sentences.parquet
     - src/job_post_topic_modelling/embed.py
+    - src/job_post_topic_modelling/embedding_models.py
     - src/job_post_topic_modelling/utils/data_io.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
     - src/job_post_topic_modelling/utils/find_project_root.py
@@ -25,7 +26,9 @@ stages:
     - embed
     outs:
     - data/embeddings/
-    - output/metrics/embed.json
+    metrics:
+    - output/metrics/embed.json:
+        cache: false
   train:
     cmd: >
       POLARS_MAX_THREADS=8
