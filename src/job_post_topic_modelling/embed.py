@@ -88,7 +88,6 @@ if __name__ == "__main__":
         shard_size=par.settings.shard_size,
         show_progress_bar=par.settings.show_progress_bar,
         device=par.settings.device,
-        num_workers=par.settings.num_workers,
     )
     embed_seconds = time.time() - embed_start
 
