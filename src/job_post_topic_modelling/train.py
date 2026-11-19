@@ -91,12 +91,14 @@ def get_dimensionality_reduction_model(par: OmegaConf, seed: int, n_jobs: int):
 def get_clustering_model(par: OmegaConf, n_train: int, seed: int, n_jobs: int):
     args = {k: v for k, v in par.clustering.items() if k not in ["model"]}
     if par.clustering.model == "HDBSCAN":
-        min_cluster_size, min_samples = resolve_cluster_sizes(
-            n_train, args.pop("min_cluster_size_share"), args.pop("min_samples_ratio")
-        )
-        clustering_model = HDBSCAN(
-            min_cluster_size=min_cluster_size, min_samples=min_samples, core_dist_n_jobs=n_jobs, **args
-        )
+        if "min_cluster_size_share" in args:
+            # Relative settings: turn them into absolute sizes for this training set
+            min_cluster_size, min_samples = resolve_cluster_sizes(
+                n_train, args.pop("min_cluster_size_share"), args.pop("min_samples_ratio")
+            )
+            args.update(min_cluster_size=min_cluster_size, min_samples=min_samples)
+        # Otherwise (e.g. HDBSCAN_blank) the args pass through unchanged: library defaults
+        clustering_model = HDBSCAN(core_dist_n_jobs=n_jobs, **args)
     elif par.clustering.model == "KMeans":
         clustering_model = KMeans(random_state=seed, **args)
     else:
@@ -215,7 +217,9 @@ if __name__ == "__main__":
             embeddings=embeddings,
             threshold=par.settings.reduce_outliers_threshold,
         )
-        topic_model.update_topics(documents, topics=topics, vectorizer_model=vectorizer_model)
+        topic_model.update_topics(
+            documents, topics=topics, vectorizer_model=vectorizer_model, top_n_words=par.settings.top_n_words
+        )
 
     # 7. Save the model, the submodels and the labels of the training occurrences
     print(f"Saving BERTopic model to {models_dir / 'bertopic_model'}")
