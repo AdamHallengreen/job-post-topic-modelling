@@ -11,7 +11,6 @@ embed:
     show_progress_bar: true
     batch_size: 64
     device: null
-    num_workers: 1
     shard_size: 2000000
     model_dir: null
   model:

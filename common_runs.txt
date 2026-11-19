@@ -7,7 +7,8 @@ conda activate job_post_topic_modelling
 dvc exp run --queue -S "prepare/settings=small"  -S "prepare/star=star" --force-downstream
 
 
-dvc exp run --queue -S "prepare/settings=full"  -S "prepare/star=star" -S "embed.settings.num_workers=1,5" -S "embed.settings.batch_size=256,512" --force-downstream
+# obsolete: embed.settings.num_workers was removed (sentence-transformers 6 encode does not accept it)
+# dvc exp run --queue -S "prepare/settings=full"  -S "prepare/star=star" -S "embed.settings.num_workers=1,5" -S "embed.settings.batch_size=256,512" --force-downstream
 
 
 
