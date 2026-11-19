@@ -5,6 +5,7 @@ prepare:
     split_sentences: true
   star:
     usestar: 1
+    title_col: null
 embed:
   settings:
     show_progress_bar: true

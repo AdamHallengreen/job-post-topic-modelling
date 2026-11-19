@@ -1,27 +1,17 @@
 import json
-import os
-import re
 import time
 from pathlib import Path
 
-# For plotting
 import polars as pl
 from lingua import LanguageDetectorBuilder
-from nltk.tokenize import sent_tokenize
 from omegaconf import DictConfig, OmegaConf
 from polars import col as c
 
+from job_post_topic_modelling.sentences import deduplicate, post_id_from_section_id, split_posts, title_rows
 from job_post_topic_modelling.utils.miscellaneous import print_params, try_inter
 
 try_inter()
 from job_post_topic_modelling.utils.find_project_root import find_project_root  # noqa: E402
-
-# Check if running on STAR server, if yes set up path to load nltk data
-
-user = os.popen("whoami").read().strip()  # noqa: S605, S607
-import nltk  # type: ignore  # noqa: PGH003 E402
-
-nltk.data.path.append(rf"/home/{user}@PROD.SITAD.DK/code/help/installations/nltk_data")
 
 
 class FileNotFoundErrorMessage:
@@ -46,14 +36,14 @@ class UnsupportedLinguaOutput(Exception):
 
 def load_data(file_path: Path, par: DictConfig) -> pl.DataFrame:
     """
-    Load data from an Excel file.
+    Load data from an Excel file, or from STAR when par.star.usestar is 1.
 
     Args:
         file_path (Path): Path to the Excel file.
         par (DictConfig): Configuration parameters.
 
     Returns:
-        pl.DataFrame: DataFrame containing the loaded data.
+        pl.DataFrame: DataFrame with post_id, title and text (and section_id on STAR sections).
 
     Raises:
         FileNotFoundError: If the file does not exist.
@@ -68,38 +58,52 @@ def load_data(file_path: Path, par: DictConfig) -> pl.DataFrame:
         raise FileNotFoundError(FileNotFoundErrorMessage(file_path))
     # check if the file is an Excel file
     if file_path.suffix in [".xlsx", ".xls"]:
-        df = load_excel(file_path)
+        df = load_excel(file_path, par)
     else:
         raise UnsupportedFileTypeError(file_path.suffix)
     return df
 
 
-def load_star_data(par) -> pl.DataFrame:
+def load_star_data(par: DictConfig) -> pl.DataFrame:
     """
-    Loads the jobpost data from star data on the server
-    """
+    Load the job post data from STAR.
 
+    Returns post_id, title, text, plus section_id when the sectioned data is used.
+    post_id is ann_id if the file has it, otherwise it is taken from section_id.
+    title comes from par.star.title_col and is null when that is not set.
+    """
     folder_path = Path("/data/projects/klikdata/Asker/jobads/dgp/textdata")
 
-    dataname = "jobads_clean.parquet"
-    id_var = "ann_id"
-    text_var = "annonce_tekst"
-    if par.settings.split_sentences or par.settings.split_paragraphs:
-        # Load the sectioned data
-        dataname = "jobads_sections_clean.parquet"
-        id_var = "section_id"
-        text_var = "section_text"
+    sectioned = par.settings.split_sentences or par.settings.split_paragraphs
+    if sectioned:
+        dataname, text_var = "jobads_sections_clean.parquet", "section_text"
+    else:
+        dataname, text_var = "jobads_clean.parquet", "annonce_tekst"
 
-    df = (
-        pl.scan_parquet(folder_path / dataname)
-        .select(c(id_var).alias("id"), c(text_var).alias("text"))
+    lazy = pl.scan_parquet(folder_path / dataname)
+    has_ann_id = "ann_id" in lazy.collect_schema().names()
+
+    # post_id: the real ann_id when the file has it, else cut it out of section_id
+    post_id = c("ann_id").cast(pl.String) if has_ann_id else post_id_from_section_id(c("section_id"))
+    title_col = par.star.get("title_col")
+    if title_col:
+        title = c(title_col).cast(pl.String)
+    else:
+        print("    - No title column on STAR, titles skipped")
+        title = pl.lit(None, dtype=pl.String)
+
+    columns = [post_id.alias("post_id"), title.alias("title"), c(text_var).alias("text")]
+    if sectioned:
+        columns.append(c("section_id"))
+
+    return (
+        lazy.select(columns)
         .filter(
             c("text").is_not_null()  # a few obs have missing text but non-missing heading and rubrik
         )
         .slice(0, par.settings.nobs)
-    ).collect()
-
-    return df
+        .collect()
+    )
 
 
 def rename_jobcenter_obs(df: pl.DataFrame) -> pl.DataFrame:
@@ -107,27 +111,28 @@ def rename_jobcenter_obs(df: pl.DataFrame) -> pl.DataFrame:
     Rename rows with id 'Virksomheden har valgt at rekruttere via jobcentret' to unique IDs.
 
     Args:
-        df (pl.DataFrame): Input DataFrame with an 'id' column.
+        df (pl.DataFrame): Input DataFrame with a 'post_id' column.
 
     Returns:
         pl.DataFrame: DataFrame with unique IDs for jobcenter posts.
     """
     # Add a unique suffix to each duplicate "jobcenter" id using cumcount
     df = df.with_columns(
-        pl.when(c("id") == "Virksomheden har valgt at rekruttere via jobcentret")
-        .then("jobcenter_" + (pl.cum_count("id").over("id") + 1).cast(pl.String))
-        .otherwise(c("id"))
-        .alias("id")
+        pl.when(c("post_id") == "Virksomheden har valgt at rekruttere via jobcentret")
+        .then("jobcenter_" + (pl.cum_count("post_id").over("post_id") + 1).cast(pl.String))
+        .otherwise(c("post_id"))
+        .alias("post_id")
     )
     return df
 
 
-def load_excel(file_path: Path, sheet_name: str = "Sheet1") -> pl.DataFrame:
+def load_excel(file_path: Path, par: DictConfig, sheet_name: str = "Sheet1") -> pl.DataFrame:
     """
-    Load data from an Excel file and return it as a DataFrame.
+    Load data from an Excel file and return post_id, title and text.
 
     Args:
         file_path (Path): Path to the Excel file.
+        par (DictConfig): Configuration parameters (settings.nobs limits the number of posts).
         sheet_name (str, optional): Name of the sheet to load. Defaults to "Sheet1".
 
     Returns:
@@ -138,10 +143,10 @@ def load_excel(file_path: Path, sheet_name: str = "Sheet1") -> pl.DataFrame:
         pl.read_excel(
             file_path,
             sheet_name=sheet_name,
-            columns=["ID", "Text"],
-            schema_overrides={"ID": pl.String, "Text": pl.String},
+            columns=["ID", "Title", "Text"],
+            schema_overrides={"ID": pl.String, "Title": pl.String, "Text": pl.String},
         )
-        .rename({"ID": "id", "Text": "text"})
+        .rename({"ID": "post_id", "Title": "title", "Text": "text"})
         .slice(0, par.settings.nobs)
     )
     return df
@@ -178,7 +183,7 @@ def detect_language(df: pl.DataFrame) -> pl.DataFrame:
 
 def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     """
-    Clean the DataFrame by renaming jobcenter posts and filtering for Danish language.
+    Rename jobcenter posts and keep only Danish texts. HTML is cleaned later by split_posts.
 
     Args:
         df (pl.DataFrame): Input DataFrame.
@@ -195,94 +200,22 @@ def clean_data(df: pl.DataFrame) -> pl.DataFrame:
     df = df.filter(c("language") == "DAN")
     print(f"    - Removed {n - df.height:,} non-danish texts")
 
-    # clean text column
-    df = df.with_columns(
-        c("text")
-        # Remove HTML tags
-        .str.replace_all(r"<[^>]+>", " ")
-        # Remove _x0009_
-        .str.replace_all(r"_x0009_", " ")
-        # Remove extra tabs and spaces except line breaks
-        .str.replace_all(r"[ \t]+", " ")
-        # Remove leading and trailing whitespace
-        .str.strip_chars()
-        .alias("text")
-    )
-
     return df
 
 
-def filter_sentences_remove_sensitive(df: pl.DataFrame, split_paragraphs: bool = False) -> tuple[pl.DataFrame, list]:
-    """
-    Splits texts into sentences or paragraphs, removes those containing sensitive info,
-    and returns a DataFrame with unique labels and filtered text.
-    """
-    # Compile regex patterns for sensitive info
-    date_pattern = re.compile(
-        r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
-        r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
-        re.IGNORECASE,
-    )
-    date_pattern = re.compile(
-        r"\b(\d{1,2}([./-])\d{1,2}\2\d{2,4}"
-        + r"|\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec|januar|februar|marts|april|maj|juni|juli|august|september|oktober|november|december)[a-zæøå]*\s*\d{4})\b",
-        re.IGNORECASE,
-    )
-    phone_pattern = re.compile(r"\b(\d{8}|(\d{2}\s){3}\d{2})\b")
-    email_pattern = re.compile(r"\b[\w\.-]+@[\w\.-]+\.\w+\b")
-    homepage_pattern = re.compile(
-        r"http[s]?://\S+|www\.\S+|\b[\w\.-]+\.(dk|com|net|org|info|eu|io|co|biz|gov|edu)\b", re.IGNORECASE
-    )
-
-    def is_sensitive(text: str) -> bool:
-        return (
-            date_pattern.search(text)
-            or phone_pattern.search(text)
-            or email_pattern.search(text)
-            or homepage_pattern.search(text)
-        )
-
-    labels, filtered_texts = [], []
-    sensitive_texts = []
-    label_col, text_col = df.columns[0], df.columns[1]
-    n_text = df.height
-    n_paragraphs = 0
-    n_sentences = 0
-    n_filtered = 0
-
-    for label, text in zip(df[label_col], df[text_col]):
-        idx = 0
-        text = str(text)
-        # paragraphs = re.split(r"(?:\r?\n){2,}|•", text) if split_paragraphs else [text]
-        # always split into paragraphs as it helps with sentences splitting lists. (which explitly (replace html marks with this) use • as separator)
-        paragraphs = re.split(r"(?:\r?\n){2,}|•|\*", text)
-        n_paragraphs += len(paragraphs)
-        for para in paragraphs:
-            sentences = sent_tokenize(para, language="danish")
-            n_sentences += len(sentences)
-            filtered_sents = [re.sub(r"[\r\n]+", " ", sent).strip() for sent in sentences if not is_sensitive(sent)]
-            n_filtered += len(sentences) - len(filtered_sents)
-            if split_paragraphs:
-                if filtered_sents:
-                    labels.append(f"{label}_{idx:02d}")
-                    filtered_texts.append(" ".join(filtered_sents))
-                    idx += 1
-            else:
-                for sent_clean in filtered_sents:
-                    labels.append(f"{label}_{idx:02d}")
-                    filtered_texts.append(sent_clean)
-                    idx += 1
-            sensitive_texts += [sent for sent in sentences if is_sensitive(sent)]
-
-    print(f"    - From {n_text:,} texts, extracted {n_paragraphs:,} paragraphs and {n_sentences:,} sentences")
-    print(f"    - Removed {n_filtered:,} sensitive {'paragraphs' if split_paragraphs else 'sentences'}")
-
-    return pl.DataFrame({"label": labels, "text": filtered_texts}), sensitive_texts
+def print_drop_summary(parts: pl.DataFrame) -> None:
+    """Print how many parts were kept or dropped per reason, and 20 random dropped headings."""
+    counts = parts.with_columns(c("drop_reason").fill_null("kept")).group_by("drop_reason").len().sort("drop_reason")
+    for reason, n in counts.iter_rows():
+        print(f"    - {reason}: {n:,}")
+    headings = parts.filter(c("drop_reason") == "heading")
+    for heading in headings.sample(min(20, headings.height), seed=1)["text"]:
+        print(f"      dropped heading: {heading}")
 
 
 def export_texts(texts: pl.DataFrame, output_file: Path) -> None:
     """
-    Export the texts to a JSON file.
+    Export the texts to a Parquet file.
     Args:
         texts (pl.DataFrame): DataFrame containing the texts.
         output_file (Path): Path to the output file.
@@ -314,6 +247,7 @@ if __name__ == "__main__":
 
     file_path = data_dir / "Jobnet.xlsx"
     texts_file = data_dir / "texts.parquet"
+    sentences_file = data_dir / "sentences.parquet"
 
     # Load parameters
     full_par = OmegaConf.load(params_path)
@@ -326,35 +260,40 @@ if __name__ == "__main__":
 
     # Load
     print("Loading data...")
-    texts = load_data(file_path, par)
-    num_texts_loaded = len(texts)
+    posts = load_data(file_path, par)
+    num_texts_loaded = len(posts)
 
     # Clean
     print("Cleaning data...")
-    texts = clean_data(texts)
-    num_texts_used = len(texts)
+    posts = clean_data(posts)
+    num_texts_used = len(posts)
     from_path = file_path
     if par.star.usestar == 1:
         from_path = Path("STAR data")
     print(f"    - Use {num_texts_used:,}/{num_texts_loaded:,} texts from {from_path}")
 
-    # Split
-    if par.settings.split_sentences:
-        split_paragraphs = False  # split on sentences
-        texts, sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
-        num_splitted_sections = len(texts)
-        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} sentences")
-    elif par.settings.split_paragraphs:
-        split_paragraphs = True  # split on paragraphs
-        texts, sensitive_texts = filter_sentences_remove_sensitive(texts, split_paragraphs=split_paragraphs)
-        num_splitted_sections = len(texts)
-        print(f"    - Split {num_texts_used:,} texts into {num_splitted_sections:,} paragraphs")
-    else:
-        pass
+    # Split: one row per sentence (or paragraph), with a drop reason for headings and sensitive text
+    unit = "sentence" if par.settings.split_sentences else "paragraph"
+    if "section_id" in posts.columns:
+        # STAR: a post has several sections, so section_id keeps the labels unique
+        posts = posts.with_columns(c("section_id").alias("label_base"))
+    parts = split_posts(posts, unit)
+    print(f"    - Split {num_texts_used:,} texts into {parts.height:,} {unit}s")
+    print_drop_summary(parts)
+
+    # Keep the titles and the parts without a drop reason
+    one_row_per_post = posts.unique("post_id", keep="first", maintain_order=True)  # STAR repeats a title per section
+    texts = pl.concat([title_rows(one_row_per_post), parts.filter(c("drop_reason").is_null())]).drop("drop_reason")
+
+    # Give every distinct text one sentence_id, so each distinct text is embedded only once
+    texts, sentences = deduplicate(texts)
+    share_duplicate = 1 - sentences.height / texts.height
+    print(f"    - {sentences.height:,} unique texts out of {texts.height:,} rows ({share_duplicate:.1%} duplicates)")
 
     # Save
     export_texts(texts, texts_file)
-    print(f"Exported texts to {texts_file}")
+    export_texts(sentences, sentences_file)
+    print(f"Exported texts to {texts_file} and unique sentences to {sentences_file}")
 
     # Wrap up
     stop = time.time()
@@ -364,34 +303,3 @@ if __name__ == "__main__":
     # Save metrics
     with ((output_dir / "metrics") / "prepare.json").open("w") as f:
         json.dump({f"{Path(__file__).name}": f"{hours:.2f} hours"}, f, indent=4)
-
-    if False:  # For debugging purposes
-        text_org = load_data(file_path, par)
-        texts = pl.read_parquet(texts_file)
-        print("Sensitive texts:")
-        import random
-
-        for st in random.sample(sensitive_texts, 100):
-            print(f" - {st}")
-
-        print("Sample original and filtered texts:")
-        ids = text_org.select(c.id.str.replace_all(r"_s\d+$", "")).unique().sort("id")
-        for ann_id in ids.sample(100)["id"].to_list():
-            print(ann_id)
-            text_ids = text_org.filter(c("id").str.starts_with(ann_id))
-            print(f"Original has {len(text_ids)} parts:")
-            print(f"Filtered has {len(texts.filter(c('label').str.starts_with(ann_id)))} parts:")
-            for sub_id in text_ids["id"].to_list():
-                print(sub_id)
-                text_org_obs = text_org.filter(c("id") == sub_id)["text"][0]
-                print(text_org_obs)
-                filtered_obs = texts.filter(c("label").str.starts_with(sub_id + "_"))
-
-                if len(filtered_obs) == 0:
-                    print("   - NO FILTERED TEXTS")
-                else:
-                    print(f"Has {len(text_org_obs)} characters and {len(filtered_obs)} filtered parts")
-                    print("Filtered texts:")
-                    for t in filtered_obs["text"].to_list():
-                        print(f"   - {t}")
-            print("-----\n")

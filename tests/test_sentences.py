@@ -5,6 +5,7 @@ from job_post_topic_modelling.sentences import (
     html_to_text,
     is_heading,
     is_sensitive,
+    post_id_from_section_id,
     split_into_sentences,
     split_posts,
     title_rows,
@@ -89,3 +90,16 @@ def test_deduplicate_round_trip():
     assert texts_out["sentence_id"].to_list() == [0, 1, 0]
     rebuilt = texts_out.join(sentences, on="sentence_id", suffix="_unique")
     assert (rebuilt["text"] == rebuilt["text_unique"]).all()
+
+
+def test_post_id_from_section_id():
+    df = pl.DataFrame({"section_id": ["12345_s1", "12345_s2", "987_s10"]})
+    out = df.select(post_id_from_section_id(pl.col("section_id")))["section_id"].to_list()
+    assert out == ["12345", "12345", "987"]
+
+
+def test_split_posts_label_base_keeps_real_post_id():
+    posts = pl.DataFrame({"post_id": ["1"], "label_base": ["1_s2"], "text": ["Flekstid. God løn."]})
+    out = split_posts(posts)
+    assert out["post_id"].to_list() == ["1", "1"]
+    assert out["label"].to_list() == ["1_s2_00", "1_s2_01"]

@@ -78,6 +78,11 @@ SENSITIVE_PATTERNS = [
 ]
 
 
+def post_id_from_section_id(section_ids: pl.Expr) -> pl.Expr:
+    """Post id of a STAR section id: "12345_s2" -> "12345"."""
+    return section_ids.str.extract(r"^(\d+)_s", 1)
+
+
 def html_to_text(text: str) -> str:
     """Turn HTML into plain text where list items and paragraphs are separate lines."""
     text = LINE_BREAK_TAG.sub("\n", text)
@@ -136,18 +141,22 @@ def is_sensitive(sentence: str) -> bool:
 def split_posts(posts: pl.DataFrame, unit: str = "sentence") -> pl.DataFrame:
     """Split each post into parts, one row per part.
 
-    Input columns: post_id, text. Output columns: post_id, label, text, drop_reason.
-    label is "<post_id>_<i>" with i counted from 00 over the post's parts, in order.
+    Input columns: post_id, text, and optionally label_base. Output columns: post_id, label, text, drop_reason.
+    label is "<label_base>_<i>" with i counted from 00 over the row's parts, in order. label_base defaults to
+    post_id; use it when one post is spread over several rows (STAR sections), so labels stay unique.
+    The output always keeps the real post_id.
     drop_reason is null for parts to keep, "heading" for section titles and "sensitive" for dates,
     phone numbers, e-mail addresses and homepages.
     """
+    if "label_base" not in posts.columns:
+        posts = posts.with_columns(pl.col("post_id").alias("label_base"))
     rows = []
-    for post_id, text in posts.select("post_id", "text").iter_rows():
+    for post_id, label_base, text in posts.select("post_id", "label_base", "text").iter_rows():
         clean_text = html_to_text(text or "")
         for i, part in enumerate(split_into_sentences(clean_text, unit)):
             rows.append({
                 "post_id": post_id,
-                "label": f"{post_id}_{i:02d}",
+                "label": f"{label_base}_{i:02d}",
                 "text": part,
                 "drop_reason": _drop_reason(part),
             })

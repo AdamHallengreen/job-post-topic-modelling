@@ -4,12 +4,14 @@ stages:
     deps:
     - data/Jobnet.xlsx
     - src/job_post_topic_modelling/prepare.py
+    - src/job_post_topic_modelling/sentences.py
     - src/job_post_topic_modelling/utils/find_project_root.py
     - src/job_post_topic_modelling/utils/miscellaneous.py
     params:
     - prepare
     outs:
     - data/texts.parquet
+    - data/sentences.parquet
     - output/metrics/prepare.json
   embed:
     cmd: python src/job_post_topic_modelling/embed.py
