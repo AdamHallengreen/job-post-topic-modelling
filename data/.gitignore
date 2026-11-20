@@ -2,4 +2,4 @@
 /embeddings.npy
 /reduced_embeddings.npy
 /embeddings
-/llm_topics/
+/llm_topics
